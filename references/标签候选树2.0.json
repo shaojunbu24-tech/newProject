@@ -1,0 +1,848 @@
+{
+  "标签台账名称": "电力设备多模态标签候选树",
+  "标签台账版本": "2.0",
+  "状态": "2.0覆盖增强版-待领域专家终审",
+  "标签使用规则": {
+    "正式标签来源": "本台账或后续已发布版本",
+    "候选外处理代码": "OTHER_REVIEW",
+    "候选外处理名称": "其他待复核",
+    "候选外内容是否参与训练": false,
+    "虚标签是否允许人工直接标注": false,
+    "文件名标签是否可直接作为视觉标签": false,
+    "正式候选格式": "必须同时包含代码和中文名称；纯字符串数组只允许用于流程状态或尚未发布的规划词表",
+    "领域加载规则": "先根据业务域和设施场景路由，再加载对应设备主题子树；阶段二结束后才允许按实际载体加载缺陷候选",
+    "渐进披露规则": "每轮正式选择必须来自本轮候选快照；未向模型披露的标签即使存在于总台账中也不得直接选择",
+    "无异常处理规则": "NO_VISIBLE_ANOMALY是检查结论控制代码，不作为缺陷实例写入训练标签；应通过载体的缺陷检查状态表达"
+  },
+  "渐进披露配置": {
+    "_说明": "本节定义四阶段工作流的阶段门禁和候选披露边界。它不改变标注对象树，只约束模型在每个阶段能够看到和选择的内容。",
+    "阶段顺序": ["ROUTE", "SUBJECT", "DEFECT", "VALIDATE", "DERIVE"],
+    "阶段定义": [
+      {
+        "阶段代码": "ROUTE",
+        "中文名称": "阶段一：图像路由",
+        "允许披露": ["通用路由候选", "当前业务域对应的设施场景"],
+        "禁止提前披露": ["设备部件候选", "设施部件候选", "缺陷代码表", "载体缺陷候选", "部件缺陷精确映射"],
+        "完成输出": ["业务域", "设施场景", "拍摄任务", "拍摄范围", "图像模态", "图像质量", "可继续标注状态", "激活标签包"]
+      },
+      {
+        "阶段代码": "SUBJECT",
+        "中文名称": "阶段二：设备主题分层标注",
+        "进入条件": ["ROUTE已完成", "可继续标注状态为可以或部分可以"],
+        "允许披露": ["已激活场景的设施候选", "设备候选", "设施部件候选", "设备部件候选", "子部件候选", "静态属性候选"],
+        "禁止提前披露": ["缺陷代码表", "载体缺陷候选", "部件缺陷精确映射"],
+        "完成输出": ["主要对象主题", "标注对象树", "静态属性", "待检查载体队列"]
+      },
+      {
+        "阶段代码": "DEFECT",
+        "中文名称": "阶段三：缺陷标注",
+        "进入条件": ["SUBJECT已完成", "待检查载体队列已生成"],
+        "允许披露": ["当前载体经精确映射和跨字段约束过滤后的缺陷候选", "缺陷检查结论候选"],
+        "禁止提前披露": ["与当前载体无关的缺陷候选"],
+        "完成输出": ["各载体缺陷检查状态", "缺陷实例", "直接可见证据", "待人工复核项"]
+      },
+      {
+        "阶段代码": "VALIDATE",
+        "中文名称": "阶段四：自动校验",
+        "进入条件": ["ROUTE、SUBJECT、DEFECT均无未处理项"],
+        "允许披露": ["规则校验结果", "与问题对象相关的候选子树", "大模型语义复核任务"],
+        "完成输出": ["规则校验结论", "大模型语义复核结论", "最终门禁结论"]
+      },
+      {
+        "阶段代码": "DERIVE",
+        "中文名称": "派生输出",
+        "进入条件": ["最终门禁允许生成派生输出"],
+        "完成输出": ["纯视觉描述", "业务描述", "检索描述", "组合检索修改文本"]
+      }
+    ],
+    "候选披露轨迹必填字段": ["轨迹编号", "阶段代码", "父节点代码", "标签包名称", "标签包版本", "候选代码", "选择代码", "候选快照摘要"],
+    "阶段状态候选": ["未开始", "进行中", "已完成", "退回修改", "待人工复核", "不适用"],
+    "候选快照规则": "候选代码保存完整数组用于复现，候选快照摘要保存规范化候选数组的SHA-256摘要用于防止台账升级后误判历史选择"
+  },
+  "覆盖成熟度": {
+    "配电架空线路": "候选可用于当前项目试标；杆塔20类、设备20类、元件28类、环境18类、拍摄位置8类已代码化，缺陷按PDF可辨识批次和当前数据补齐，仍需官方100类电子台账终审",
+    "户外变电站": "候选可覆盖当前64张项目图片中的主变、站用变、断路器、避雷器表计和并联电容器任务，尚不是全站全设备缺陷标准",
+    "配电站房、箱式变电站、配电电缆": "路由级规划词表，未达到训练标签发布条件",
+    "输电、发电、用电": "路由级规划词表，需对应专业标签包后才能用于正式训练"
+  },
+  "通用路由候选": {
+    "业务域": [
+      {"代码": "GEN", "中文名称": "发电"},
+      {"代码": "TRA", "中文名称": "输电"},
+      {"代码": "SUB", "中文名称": "变电"},
+      {"代码": "DIS", "中文名称": "配电"},
+      {"代码": "USE", "中文名称": "用电"},
+      {"代码": "CROSS", "中文名称": "跨领域"},
+      {"代码": "UNKNOWN", "中文名称": "无法判定"}
+    ],
+    "拍摄任务": ["设备识别", "缺陷巡视", "状态核查", "表计读取", "铭牌采集", "红外测温", "通道巡视", "其他待复核"],
+    "拍摄范围": [
+      {"代码": "SITE_PANORAMA", "中文名称": "场站全景", "适用范围": "通用扩展"},
+      {"代码": "xianlutongdao", "中文名称": "线路通道", "PDF序号": 7},
+      {"代码": "gantaquanjing", "中文名称": "杆塔全景", "PDF序号": 1},
+      {"代码": "gantatading", "中文名称": "杆塔塔顶", "PDF序号": 2},
+      {"代码": "gantatatou", "中文名称": "杆塔塔头", "PDF序号": 3},
+      {"代码": "gantatasheng", "中文名称": "杆塔塔身", "PDF序号": 4},
+      {"代码": "ganataji", "中文名称": "杆塔塔基", "PDF序号": 5},
+      {"代码": "DEVICE_PANORAMA", "中文名称": "设备全景", "适用范围": "通用扩展"},
+      {"代码": "gantashebei", "中文名称": "设备部件近景", "PDF序号": 6, "PDF名称": "杆塔设备图"},
+      {"代码": "DEFECT_CLOSEUP", "中文名称": "缺陷特写", "适用范围": "通用扩展"},
+      {"代码": "NAMEPLATE_IMAGE", "中文名称": "铭牌图", "适用范围": "通用扩展"},
+      {"代码": "METER_IMAGE", "中文名称": "表计图", "适用范围": "通用扩展"},
+      {"代码": "THERMAL_IMAGE", "中文名称": "红外图", "适用范围": "通用扩展"},
+      {"代码": "paishebuguifan", "中文名称": "非标准图", "PDF序号": 8, "PDF名称": "拍摄不规范图"}
+    ],
+    "图像模态": [
+      {"代码": "VISIBLE", "中文名称": "可见光图像"},
+      {"代码": "INFRARED", "中文名称": "红外图像"},
+      {"代码": "VISIBLE_INFRARED", "中文名称": "可见光与红外配对图"},
+      {"代码": "SCREENSHOT", "中文名称": "系统截图或带界面图像"},
+      {"代码": "MODALITY_UNKNOWN", "中文名称": "模态不可判定", "参与训练": false}
+    ],
+    "图像清晰程度": ["清晰", "轻度模糊", "严重模糊", "曝光异常", "目标过小"],
+    "遮挡程度": ["无遮挡", "轻度遮挡", "中度遮挡", "严重遮挡"],
+    "可继续标注状态": ["可以", "部分可以", "需要人工路由", "无效图像"]
+  },
+  "业务候选树": [
+    {
+      "业务域": {"代码": "DIS", "中文名称": "配电"},
+      "设施场景": [
+        {
+          "代码": "DIS_OHL", "中文名称": "配电架空线路", "标签包": "配电架空线路六层知识", "成熟度": "项目可用-待专家终审",
+          "设施候选": [
+            {"代码": "POLE_TOWER", "中文名称": "杆塔"},
+            {"代码": "LINE_CORRIDOR", "中文名称": "线路通道"}
+          ],
+          "设备候选": [
+            {"代码": "DIS_SW_BOX", "中文名称": "三相共箱式柱上高压开关", "来源代码": "zsgykg_sxgxs", "PDF序号": 1},
+            {"代码": "DIS_BREAKER", "中文名称": "极柱式柱上断路器", "来源代码": "zsdlq_jzs", "PDF序号": 2},
+            {"代码": "DIS_CT", "中文名称": "互感器", "来源代码": "hgq", "PDF序号": 3},
+            {"代码": "DIS_FTU", "中文名称": "馈线终端FTU", "来源代码": "ftu", "PDF序号": 4},
+            {"代码": "DTR_3P", "中文名称": "三相配电变压器", "来源代码": "byq", "PDF序号": 5},
+            {"代码": "DTR_1P", "中文名称": "单相配电变压器", "来源代码": "byq_danxiang", "PDF序号": 6, "启用状态": "暂不启用", "参与训练": false},
+            {"代码": "DIS_CABINET", "中文名称": "综合配电柜", "来源代码": "zhpdg", "PDF序号": 7},
+            {"代码": "DIS_ISOLATOR_COMBINED", "中文名称": "组合式隔离开关", "来源代码": "glkg_zhuduan", "PDF序号": 8},
+            {"代码": "DIS_ISOLATOR_SINGLE", "中文名称": "独立式隔离开关", "来源代码": "glkg_duli", "PDF序号": 9},
+            {"代码": "DIS_DROP_FUSE", "中文名称": "跌落式熔断器", "来源代码": "dlsrdq", "PDF序号": 10},
+            {"代码": "DIS_ARRESTER_VIRTUAL", "中文名称": "避雷器", "来源代码": "blq", "PDF序号": 11, "标签性质": "虚标签", "参与训练": false},
+            {"代码": "DIS_ARRESTER_FIXED", "中文名称": "交流避雷器（固定式）", "来源代码": "blq_gds", "PDF序号": 12},
+            {"代码": "DIS_ARRESTER_DETACH", "中文名称": "交流避雷器（自弹可拆卸式）", "来源代码": "blq_ztkcxs", "PDF序号": 13},
+            {"代码": "DIS_OVERVOLTAGE_PROTECTOR", "中文名称": "过电压保护器", "来源代码": "blq_gdybhq", "PDF序号": 14},
+            {"代码": "DIS_GAP_ARRESTER", "中文名称": "外串联间隙避雷器", "来源代码": "blq_gdwcljx", "PDF序号": 15},
+            {"代码": "DIS_HV_METER", "中文名称": "高压计量装置", "来源代码": "gyjlzz", "PDF序号": 16},
+            {"代码": "DIS_LINELOSS_METER", "中文名称": "线损计量装置", "来源代码": "xsjlzz", "PDF序号": 17},
+            {"代码": "DIS_REACTIVE_COMP", "中文名称": "无功补偿装置", "来源代码": "wgbczz", "PDF序号": 18},
+            {"代码": "DIS_FAULT_INDICATOR", "中文名称": "故障指示器", "来源代码": "gzzsq", "PDF序号": 19},
+            {"代码": "DIS_BIRD_REPELLER", "中文名称": "驱鸟器", "来源代码": "qnq", "PDF序号": 20}
+          ],
+          "杆塔属性候选": {
+            "材质_单选": [
+              {"代码": "shuinigan", "中文名称": "水泥杆", "PDF序号": 1},
+              {"代码": "gangguangan", "中文名称": "钢管杆", "PDF序号": 2},
+              {"代码": "jiaogangta", "中文名称": "角钢塔", "PDF序号": 3},
+              {"代码": "fuhecailiaogan", "中文名称": "复合材料杆", "PDF序号": 4},
+              {"代码": "TOWER_MATERIAL_UNKNOWN", "中文名称": "不可判定", "参与训练": false}
+            ],
+            "拓扑主功能_单选": [
+              {"代码": "zhixiangan", "中文名称": "直线杆", "PDF序号": 5},
+              {"代码": "zhuanjiaogan", "中文名称": "转角杆", "PDF序号": 6},
+              {"代码": "fenzhigan", "中文名称": "分支杆", "PDF序号": 7},
+              {"代码": "naizhanggan", "中文名称": "耐张杆", "PDF序号": 8},
+              {"代码": "zhongduangan", "中文名称": "终端杆", "PDF序号": 9},
+              {"代码": "TOWER_FUNCTION_UNKNOWN", "中文名称": "不可判定", "参与训练": false}
+            ],
+            "特殊结构用途_多选": [
+              {"代码": "menxinggan", "中文名称": "门形杆", "PDF序号": 10},
+              {"代码": "taijiagan", "中文名称": "变压器台架杆", "PDF序号": 11},
+              {"代码": "jkxlzrddl", "中文名称": "架空线路转入地电缆杆", "PDF序号": 12}
+            ],
+            "回路_单选": [
+              {"代码": "danhuilu", "中文名称": "单回路", "PDF序号": 13},
+              {"代码": "shuanghuilu", "中文名称": "双回路", "PDF序号": 14},
+              {"代码": "duohuilu", "中文名称": "多回路", "PDF序号": 15},
+              {"代码": "TOWER_CIRCUIT_UNKNOWN", "中文名称": "不可判定", "参与训练": false}
+            ],
+            "标志牌_多实例": [
+              {"代码": "ganhaopai", "中文名称": "杆号牌", "PDF序号": 16},
+              {"代码": "jingshipai", "中文名称": "警示牌", "PDF序号": 17},
+              {"代码": "xiangxupai", "中文名称": "相序牌", "PDF序号": 18},
+              {"代码": "taiqumingpai", "中文名称": "台区铭牌", "PDF序号": 19}
+            ],
+            "过滤辅助标签": {"代码": "guolv", "中文名称": "过滤", "PDF序号": 20, "标签性质": "辅助标签", "人工直接标注": false},
+            "是否过滤_单选": [true, false]
+          },
+          "线路元件候选": {
+            "绝缘子": [
+              {"代码": "jyz-boli_xuanshi", "中文名称": "玻璃悬式绝缘子", "PDF序号": 1},
+              {"代码": "jyz-taoci_xuanshi", "中文名称": "陶瓷悬式绝缘子", "PDF序号": 2},
+              {"代码": "jyz-fuhe_bangxing_xuanshi", "中文名称": "复合棒形悬式绝缘子", "PDF序号": 3},
+              {"代码": "jyz-taoci_bangxing_xuanshi", "中文名称": "陶瓷棒形悬式绝缘子", "PDF序号": 4},
+              {"代码": "jyz-taoci_hengdan", "中文名称": "瓷横担绝缘子", "PDF序号": 5},
+              {"代码": "jyz-taoci_zhushi", "中文名称": "陶瓷柱式绝缘子", "PDF序号": 6},
+              {"代码": "jyz-fuhe_zhenshi", "中文名称": "复合材料针式绝缘子", "PDF序号": 7},
+              {"代码": "jyz-fuhe_fanglei_zhenshi", "中文名称": "复合材料防雷针式绝缘子", "PDF序号": 8},
+              {"代码": "jyz-taoci_zhenshi", "中文名称": "陶瓷针式绝缘子", "PDF序号": 9},
+              {"代码": "jyz-taoci_dieshi", "中文名称": "陶瓷蝶式绝缘子", "PDF序号": 10},
+              {"代码": "jyz-taoci_laxian", "中文名称": "拉线绝缘子", "PDF序号": 11},
+              {"代码": "jyz-taoci_fanglei_zhushi", "中文名称": "瓷柱式防雷绝缘子", "PDF序号": 12}
+            ],
+            "金具": [
+              {"代码": "jinju-xianjia-naizhang-daozhuangxing", "中文名称": "倒装螺栓耐张线夹", "PDF序号": 13},
+              {"代码": "jinju-xianjia-naizhang-xiexing", "中文名称": "楔型耐张线夹", "PDF序号": 14},
+              {"代码": "jinju-xianjia-naizhang-yeyaxing", "中文名称": "液压型耐张线夹", "PDF序号": 15},
+              {"代码": "jinju-xianjia-xuanchui", "中文名称": "悬垂线夹", "PDF序号": 16},
+              {"代码": "jinju-xianjia-bingxian", "中文名称": "并线线夹", "PDF序号": 17, "同义名称": ["并沟线夹"]},
+              {"代码": "jinju-yandianhuan", "中文名称": "验电环", "PDF序号": 18},
+              {"代码": "jinju-tonglvguoduxianjia-bizi", "中文名称": "铜铝过渡线夹（鼻子）", "PDF序号": 19}
+            ],
+            "横担": [
+              {"代码": "hengdan-jiaotiedanhengdan", "中文名称": "角铁单横担", "PDF序号": 20},
+              {"代码": "hengdan-jiaotieshuanghengdan", "中文名称": "角铁双横担", "PDF序号": 21},
+              {"代码": "hengdan-daixiechenghengdan", "中文名称": "带斜撑横担", "PDF序号": 22},
+              {"代码": "ganghengdan", "中文名称": "钢横担", "PDF序号": 23}
+            ],
+            "其他": [
+              {"代码": "dingmao", "中文名称": "顶帽", "PDF序号": 24},
+              {"代码": "daoxian-jueyuan", "中文名称": "绝缘导线", "PDF序号": 25},
+              {"代码": "daoxian-luo", "中文名称": "裸导线", "PDF序号": 26},
+              {"代码": "daoxian-bileixian", "中文名称": "避雷线", "PDF序号": 27},
+              {"代码": "laxian", "中文名称": "拉线", "PDF序号": 28}
+            ]
+          },
+          "环境候选": {
+            "地形_单选": [
+              {"代码": "pingyuan", "中文名称": "平原", "PDF序号": 1},
+              {"代码": "qiuling", "中文名称": "丘陵", "PDF序号": 2},
+              {"代码": "shandi", "中文名称": "山地", "PDF序号": 3},
+              {"代码": "hewang", "中文名称": "河网", "PDF序号": 4},
+              {"代码": "TERRAIN_UNKNOWN", "中文名称": "不可判定", "参与训练": false}
+            ],
+            "背景_多选": [
+              {"代码": "zhulin", "中文名称": "竹林", "PDF序号": 5},
+              {"代码": "shulin", "中文名称": "树林", "PDF序号": 6},
+              {"代码": "guanmu", "中文名称": "灌木", "PDF序号": 7},
+              {"代码": "nongtian", "中文名称": "农田", "PDF序号": 8},
+              {"代码": "xue", "中文名称": "雪", "PDF序号": 9},
+              {"代码": "changqu", "中文名称": "厂区", "PDF序号": 10},
+              {"代码": "shangyejuminqu", "中文名称": "商业居民区", "PDF序号": 11},
+              {"代码": "daolubian", "中文名称": "道路边", "PDF序号": 12},
+              {"代码": "shigongqu", "中文名称": "施工区", "PDF序号": 13}
+            ],
+            "跨越_多选": [
+              {"代码": "kuayuedaolu", "中文名称": "跨越道路", "PDF序号": 14},
+              {"代码": "kuayueshuimian", "中文名称": "跨越水面", "PDF序号": 15},
+              {"代码": "kuayuefangwu", "中文名称": "跨越房屋", "PDF序号": 16},
+              {"代码": "tongganjiashe", "中文名称": "同杆架设", "PDF序号": 17},
+              {"代码": "jiaochakuayue", "中文名称": "交叉跨越", "PDF序号": 18}
+            ]
+          }
+        },
+        {
+          "代码": "DIS_ROOM", "中文名称": "配电站房", "标签包": "配电站房", "成熟度": "路由级规划",
+          "规划设备名称": ["配电变压器", "高压开关柜", "低压开关柜", "环网柜", "母线", "电缆终端", "无功补偿柜", "保护测控装置"]
+        },
+        {
+          "代码": "DIS_BOX", "中文名称": "箱式变电站", "标签包": "箱式变电站", "成熟度": "路由级规划",
+          "规划设备名称": ["箱式变电站本体", "高压单元", "变压器单元", "低压单元", "通风散热装置", "电缆终端"]
+        },
+        {
+          "代码": "DIS_CABLE", "中文名称": "配电电缆线路", "标签包": "配电电缆", "成熟度": "路由级规划",
+          "规划设备名称": ["电力电缆", "电缆终端", "电缆中间接头", "电缆分支箱", "电缆井", "接地箱", "标识桩"]
+        }
+      ]
+    },
+    {
+      "业务域": {"代码": "SUB", "中文名称": "变电"},
+      "设施场景": [
+        {
+          "代码": "SUB_OUTDOOR", "中文名称": "户外变电站", "标签包": "变电站一次设备", "成熟度": "当前项目可用-非全站标准",
+          "设备候选": [
+            {"代码": "PTR_MAIN", "中文名称": "主变压器"},
+            {"代码": "PTR_STATION", "中文名称": "站用变压器"},
+            {"代码": "REACTOR", "中文名称": "电抗器"},
+            {"代码": "SUB_BREAKER", "中文名称": "断路器"},
+            {"代码": "SUB_ISOLATOR", "中文名称": "隔离开关"},
+            {"代码": "SUB_GROUND_SWITCH", "中文名称": "接地开关"},
+            {"代码": "SUB_CT", "中文名称": "电流互感器"},
+            {"代码": "SUB_PT", "中文名称": "电压互感器"},
+            {"代码": "SUB_CVT", "中文名称": "电容式电压互感器"},
+            {"代码": "SUB_ARRESTER", "中文名称": "避雷器"},
+            {"代码": "SUB_CAPACITOR", "中文名称": "并联电容器"},
+            {"代码": "SUB_CAP_BANK", "中文名称": "并联电容器组"},
+            {"代码": "SUB_BUS", "中文名称": "母线"},
+            {"代码": "SUB_INSULATOR", "中文名称": "支柱绝缘子"},
+            {"代码": "SUB_CABLE_TERMINAL", "中文名称": "电缆终端"},
+            {"代码": "SUB_CONTROL_CAB", "中文名称": "控制柜或机构箱"}
+          ]
+        },
+        {
+          "代码": "SUB_GIS", "中文名称": "GIS设备区", "标签包": "变电站GIS", "成熟度": "路由级规划",
+          "规划设备名称": ["GIS组合电器", "断路器气室", "隔离开关气室", "母线气室", "套管", "汇控柜", "SF6密度表"]
+        },
+        {
+          "代码": "SUB_INDOOR", "中文名称": "室内变电站", "标签包": "变电站室内设备", "成熟度": "路由级规划",
+          "规划设备名称": ["主变压器", "开关柜", "GIS组合电器", "保护屏柜", "直流屏", "站用电系统", "电缆终端"]
+        }
+      ]
+    },
+    {
+      "业务域": {"代码": "TRA", "中文名称": "输电"},
+      "设施场景": [
+        {
+          "代码": "TRA_OHL", "中文名称": "输电架空线路", "标签包": "输电架空线路", "成熟度": "路由级规划",
+          "规划设备名称": ["输电杆塔", "导线", "地线", "绝缘子串", "金具串", "间隔棒", "防振锤", "均压环", "屏蔽环", "防鸟装置", "接地装置", "在线监测装置"]
+        },
+        {
+          "代码": "TRA_CABLE", "中文名称": "输电电缆线路", "标签包": "输电电缆", "成熟度": "路由级规划",
+          "规划设备名称": ["电力电缆", "电缆终端", "电缆中间接头", "交叉互联箱", "接地箱", "电缆隧道", "电缆支架", "在线监测装置"]
+        }
+      ]
+    },
+    {
+      "业务域": {"代码": "GEN", "中文名称": "发电"},
+      "设施场景": [
+        {"代码": "GEN_THERMAL", "中文名称": "火力发电厂", "标签包": "火电设备", "成熟度": "路由级规划", "规划设备名称": ["发电机", "汽轮机", "锅炉", "主变压器", "厂用变压器", "泵", "风机", "电动机", "管道", "阀门"]},
+        {"代码": "GEN_HYDRO", "中文名称": "水力发电厂", "标签包": "水电设备", "成熟度": "路由级规划", "规划设备名称": ["水轮机", "发电机", "主变压器", "调速器", "闸门", "压力管道", "泵", "阀门"]},
+        {"代码": "GEN_WIND", "中文名称": "风电场", "标签包": "风电设备", "成熟度": "路由级规划", "规划设备名称": ["风力发电机组", "叶片", "轮毂", "机舱", "塔筒", "箱式变电站", "集电线路"]},
+        {"代码": "GEN_SOLAR", "中文名称": "光伏电站", "标签包": "光伏设备", "成熟度": "路由级规划", "规划设备名称": ["光伏组件", "支架", "汇流箱", "逆变器", "箱式变电站", "集电线路"]}
+      ]
+    },
+    {
+      "业务域": {"代码": "USE", "中文名称": "用电"},
+      "设施场景": [
+        {"代码": "USE_CUSTOMER", "中文名称": "用户侧供配电设施", "标签包": "用户侧设备", "成熟度": "路由级规划", "规划设备名称": ["用户变压器", "高压开关柜", "低压开关柜", "计量装置", "无功补偿装置", "电缆终端", "充电设备"]}
+      ]
+    }
+  ],
+  "设施部件候选": {
+    "_说明": "设施部件与设备部件分开维护。杆塔是设施，不应为了复用设备字段而虚构为设备实例；配电线路绝缘子、导线、金具和横担仍从相应场景的线路元件候选中加载。",
+    "杆塔结构通用": [
+      {"代码": "TOWER_BODY", "中文名称": "杆身或塔身"},
+      {"代码": "TOWER_TOP", "中文名称": "杆塔顶部"},
+      {"代码": "TOWER_BASE", "中文名称": "杆塔基础或杆根"},
+      {"代码": "TOWER_FLANGE", "中文名称": "杆塔法兰"},
+      {"代码": "TOWER_FASTENER", "中文名称": "杆塔螺栓或紧固件"},
+      {"代码": "TOWER_HOOP", "中文名称": "抱箍"}
+    ]
+  },
+  "设施部件映射": {
+    "_说明": "键为设施代码，值为阶段二应加载的设施部件组。场景内线路元件和标志牌候选由选择器同时按候选树路径加入，不在此处复制。",
+    "POLE_TOWER": ["杆塔结构通用"]
+  },
+  "设备部件候选": {
+    "变压器通用": [
+      {"代码": "TR_TANK", "中文名称": "油箱本体"},
+      {"代码": "TR_TANK_TOP", "中文名称": "箱盖"},
+      {"代码": "TR_HV_BUSHING", "中文名称": "高压套管"},
+      {"代码": "TR_LV_BUSHING", "中文名称": "低压套管"},
+      {"代码": "TR_CONSERVATOR", "中文名称": "储油柜"},
+      {"代码": "TR_RADIATOR", "中文名称": "散热器"},
+      {"代码": "TR_COOLER", "中文名称": "冷却器"},
+      {"代码": "TR_PIPE", "中文名称": "连接管"},
+      {"代码": "TR_PIPE_JOINT", "中文名称": "连接管接头或法兰"},
+      {"代码": "TR_FAN", "中文名称": "冷却风机"},
+      {"代码": "TR_BUCHHOLZ", "中文名称": "气体继电器"},
+      {"代码": "TR_BREATHER", "中文名称": "吸湿器"},
+      {"代码": "TR_OIL_GAUGE", "中文名称": "油位计"},
+      {"代码": "TR_PRESSURE_RELIEF", "中文名称": "压力释放装置"},
+      {"代码": "TR_TERMINAL_BOX", "中文名称": "端子箱"},
+      {"代码": "TR_NAMEPLATE", "中文名称": "铭牌"},
+      {"代码": "TR_GROUND_LEAD", "中文名称": "接地引下线"}
+    ],
+    "避雷器通用": [
+      {"代码": "ARR_BODY", "中文名称": "避雷器本体"},
+      {"代码": "ARR_SHED", "中文名称": "伞裙"},
+      {"代码": "ARR_HV_LEAD", "中文名称": "高压引线"},
+      {"代码": "ARR_GROUND_LEAD", "中文名称": "接地引线"},
+      {"代码": "ARR_COUNTER", "中文名称": "放电计数器"},
+      {"代码": "ARR_MONITOR", "中文名称": "泄漏电流监测表"},
+      {"代码": "ARR_MONITOR_COUNTER", "中文名称": "避雷器动作及泄漏电流监测器"},
+      {"代码": "ARR_COVER", "中文名称": "绝缘防护罩"},
+      {"代码": "ARR_BASE", "中文名称": "底座"}
+    ],
+    "电容器通用": [
+      {"代码": "CAP_SHELL", "中文名称": "电容器箱体"},
+      {"代码": "CAP_SIDE_PANEL", "中文名称": "箱体侧板"},
+      {"代码": "CAP_BUSHING", "中文名称": "电容器套管"},
+      {"代码": "CAP_TERMINAL", "中文名称": "接线端子"},
+      {"代码": "CAP_FUSE", "中文名称": "熔断器"},
+      {"代码": "CAP_FRAME", "中文名称": "安装框架"},
+      {"代码": "CAP_NAMEPLATE", "中文名称": "铭牌"}
+    ],
+    "断路器通用": [
+      {"代码": "BRK_BODY", "中文名称": "断路器本体"},
+      {"代码": "BRK_BUSHING", "中文名称": "套管"},
+      {"代码": "BRK_TRANSMISSION", "中文名称": "传动机构"},
+      {"代码": "BRK_OPERATING_MECH", "中文名称": "操动机构"},
+      {"代码": "BRK_MECH_BOX", "中文名称": "机构箱"},
+      {"代码": "BRK_CONTROL_BOX", "中文名称": "控制箱"},
+      {"代码": "BRK_BOX_DOOR", "中文名称": "箱门"},
+      {"代码": "BRK_DOOR_LOCK", "中文名称": "门锁或把手"},
+      {"代码": "BRK_TERMINAL", "中文名称": "接线端子"},
+      {"代码": "BRK_BRACKET", "中文名称": "支架"},
+      {"代码": "BRK_FOUNDATION", "中文名称": "基础"},
+      {"代码": "BRK_PRESSURE_GAUGE", "中文名称": "压力或密度表"}
+    ],
+    "跌落式熔断器通用": [
+      {"代码": "FUSE_BODY", "中文名称": "熔断器本体"},
+      {"代码": "FUSE_TUBE", "中文名称": "熔管"},
+      {"代码": "FUSE_SUPPORT_INSULATOR", "中文名称": "支撑绝缘子"},
+      {"代码": "FUSE_CONTACT", "中文名称": "触头"},
+      {"代码": "FUSE_COVER", "中文名称": "绝缘防护罩"}
+    ],
+    "隔离开关通用": [
+      {"代码": "ISO_BODY", "中文名称": "隔离开关本体"},
+      {"代码": "ISO_BLADE", "中文名称": "刀闸或导电臂"},
+      {"代码": "ISO_SUPPORT_INSULATOR", "中文名称": "支撑绝缘子"},
+      {"代码": "ISO_OPERATING_MECH", "中文名称": "操动机构"},
+      {"代码": "ISO_CONTACT", "中文名称": "触头"},
+      {"代码": "ISO_COVER", "中文名称": "绝缘防护罩"}
+    ],
+    "柱上开关通用": [
+      {"代码": "POLE_SWITCH_BODY", "中文名称": "开关本体"},
+      {"代码": "POLE_SWITCH_BUSHING", "中文名称": "开关套管"},
+      {"代码": "POLE_SWITCH_OPERATING_MECH", "中文名称": "开关操动机构"},
+      {"代码": "POLE_SWITCH_CONTROL_BOX", "中文名称": "开关控制箱"},
+      {"代码": "POLE_SWITCH_BOX_DOOR", "中文名称": "控制箱门"},
+      {"代码": "POLE_SWITCH_TERMINAL", "中文名称": "接线端子"},
+      {"代码": "POLE_SWITCH_COVER", "中文名称": "绝缘防护罩"}
+    ],
+    "互感器通用": [
+      {"代码": "CT_BODY", "中文名称": "互感器本体"},
+      {"代码": "CT_BUSHING", "中文名称": "互感器套管"},
+      {"代码": "CT_ENCLOSURE", "中文名称": "互感器外壳"},
+      {"代码": "CT_TERMINAL", "中文名称": "互感器接线端子"},
+      {"代码": "CT_COVER", "中文名称": "互感器绝缘防护罩"}
+    ],
+    "馈线终端通用": [
+      {"代码": "FTU_ENCLOSURE", "中文名称": "FTU箱体"},
+      {"代码": "FTU_DOOR", "中文名称": "FTU箱门"},
+      {"代码": "FTU_ANTENNA", "中文名称": "通信天线"},
+      {"代码": "FTU_TERMINAL", "中文名称": "接线端子"},
+      {"代码": "FTU_CABLE", "中文名称": "连接电缆"},
+      {"代码": "FTU_INDICATOR", "中文名称": "状态指示灯"}
+    ],
+    "配电柜通用": [
+      {"代码": "CABINET_BODY", "中文名称": "柜体"},
+      {"代码": "CABINET_DOOR", "中文名称": "柜门"},
+      {"代码": "CABINET_LOCK", "中文名称": "门锁"},
+      {"代码": "CABINET_VENT", "中文名称": "通风口"},
+      {"代码": "CABINET_INDICATOR", "中文名称": "指示灯或显示单元"},
+      {"代码": "CABINET_CABLE_INLET", "中文名称": "电缆进出线口"},
+      {"代码": "CABINET_GROUND_LEAD", "中文名称": "接地引下线"}
+    ],
+    "计量装置通用": [
+      {"代码": "METERING_BODY", "中文名称": "计量装置本体"},
+      {"代码": "METERING_ENCLOSURE", "中文名称": "计量装置外壳"},
+      {"代码": "METERING_BUSHING", "中文名称": "计量装置套管"},
+      {"代码": "METERING_DISPLAY", "中文名称": "计量表计或显示单元"},
+      {"代码": "METERING_TERMINAL", "中文名称": "接线端子"},
+      {"代码": "METERING_COVER", "中文名称": "绝缘防护罩"}
+    ],
+    "无功补偿装置通用": [
+      {"代码": "REACTIVE_ENCLOSURE", "中文名称": "装置外壳或柜体"},
+      {"代码": "REACTIVE_CAPACITOR", "中文名称": "电容器单元"},
+      {"代码": "REACTIVE_BUSHING", "中文名称": "套管"},
+      {"代码": "REACTIVE_SWITCH", "中文名称": "投切开关"},
+      {"代码": "REACTIVE_CONTROLLER", "中文名称": "控制器"},
+      {"代码": "REACTIVE_COVER", "中文名称": "绝缘防护罩"}
+    ],
+    "故障指示器通用": [
+      {"代码": "FI_BODY", "中文名称": "故障指示器本体"},
+      {"代码": "FI_SENSOR", "中文名称": "采集传感器"},
+      {"代码": "FI_DISPLAY", "中文名称": "指示或显示单元"},
+      {"代码": "FI_BRACKET", "中文名称": "安装支架"},
+      {"代码": "FI_CABLE", "中文名称": "连接线"}
+    ],
+    "驱鸟器通用": [
+      {"代码": "BIRD_REPELLER_BODY", "中文名称": "驱鸟器本体"},
+      {"代码": "BIRD_REPELLER_ROTATING_PART", "中文名称": "旋转叶片或反光部件"},
+      {"代码": "BIRD_REPELLER_BRACKET", "中文名称": "安装支架"}
+    ],
+    "线路连接区通用": [
+      {"代码": "daoxian-jueyuan", "中文名称": "绝缘导线", "引用": "配电架空线路元件25"},
+      {"代码": "daoxian-luo", "中文名称": "裸导线", "引用": "配电架空线路元件26"},
+      {"代码": "CLAMP_TENSION_VIRTUAL", "中文名称": "耐张线夹", "标签性质": "虚标签", "参与训练": false},
+      {"代码": "jinju-xianjia-xuanchui", "中文名称": "悬垂线夹", "引用": "配电架空线路元件16"},
+      {"代码": "jinju-xianjia-bingxian", "中文名称": "并线线夹", "同义名称": ["并沟线夹"], "引用": "配电架空线路元件17"},
+      {"代码": "jinju-yandianhuan", "中文名称": "验电环", "引用": "配电架空线路元件18"},
+      {"代码": "jyz-taoci_zhushi", "中文名称": "陶瓷柱式绝缘子", "引用": "配电架空线路元件6"},
+      {"代码": "jyz-taoci_zhenshi", "中文名称": "陶瓷针式绝缘子", "引用": "配电架空线路元件9"},
+      {"代码": "INSULATOR_SHED", "中文名称": "绝缘子伞裙", "对象层级": "子部件"},
+      {"代码": "LINE_METAL_FITTING_VIRTUAL", "中文名称": "线路金具", "标签性质": "虚标签", "参与训练": false},
+      {"代码": "CROSSARM_VIRTUAL", "中文名称": "横担", "标签性质": "虚标签", "参与训练": false},
+      {"代码": "INSULATION_COVER", "中文名称": "绝缘防护罩"}
+    ],
+    "表计通用": [
+      {"代码": "METER_CASE", "中文名称": "表计外壳"},
+      {"代码": "METER_WINDOW", "中文名称": "透明视窗"},
+      {"代码": "METER_DIAL", "中文名称": "刻度盘"},
+      {"代码": "METER_POINTER", "中文名称": "指针"},
+      {"代码": "METER_COUNTER_WINDOW", "中文名称": "机械计数窗"},
+      {"代码": "METER_DIGITAL_DISPLAY", "中文名称": "数字显示屏"},
+      {"代码": "METER_CABLE", "中文名称": "连接电缆"},
+      {"代码": "METER_BRACKET", "中文名称": "安装支架"}
+    ]
+  },
+  "设备部件映射": {
+    "DTR_3P": ["变压器通用"],
+    "PTR_MAIN": ["变压器通用"],
+    "PTR_STATION": ["变压器通用"],
+    "DIS_ARRESTER_FIXED": ["避雷器通用"],
+    "DIS_ARRESTER_DETACH": ["避雷器通用"],
+    "SUB_ARRESTER": ["避雷器通用"],
+    "SUB_CAPACITOR": ["电容器通用"],
+    "SUB_CAP_BANK": ["电容器通用"],
+    "DIS_SW_BOX": ["柱上开关通用"],
+    "DIS_BREAKER": ["断路器通用", "柱上开关通用"],
+    "SUB_BREAKER": ["断路器通用"],
+    "DIS_CT": ["互感器通用"],
+    "DIS_FTU": ["馈线终端通用"],
+    "DIS_CABINET": ["配电柜通用"],
+    "DIS_DROP_FUSE": ["跌落式熔断器通用"],
+    "DIS_ISOLATOR_COMBINED": ["隔离开关通用"],
+    "DIS_ISOLATOR_SINGLE": ["隔离开关通用"],
+    "SUB_ISOLATOR": ["隔离开关通用"],
+    "DIS_OVERVOLTAGE_PROTECTOR": ["避雷器通用"],
+    "DIS_GAP_ARRESTER": ["避雷器通用"],
+    "DIS_HV_METER": ["计量装置通用", "表计通用"],
+    "DIS_LINELOSS_METER": ["计量装置通用", "表计通用"],
+    "DIS_REACTIVE_COMP": ["无功补偿装置通用", "电容器通用"],
+    "DIS_FAULT_INDICATOR": ["故障指示器通用"],
+    "DIS_BIRD_REPELLER": ["驱鸟器通用"],
+    "ARR_MONITOR_COUNTER": ["表计通用"]
+  },
+  "部件子部件映射": {
+    "_说明": "阶段二在选择部件后按需披露子部件。值为已在候选树中定义的子部件代码，不复制子部件定义。",
+    "TR_TANK": ["TR_TANK_TOP"],
+    "TR_PIPE": ["TR_PIPE_JOINT"],
+    "BRK_CONTROL_BOX": ["BRK_BOX_DOOR", "BRK_DOOR_LOCK"],
+    "BRK_MECH_BOX": ["BRK_BOX_DOOR", "BRK_DOOR_LOCK"],
+    "POLE_SWITCH_CONTROL_BOX": ["POLE_SWITCH_BOX_DOOR"],
+    "ARR_MONITOR_COUNTER": ["METER_CASE", "METER_WINDOW", "METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "METER_DIGITAL_DISPLAY", "METER_CABLE", "METER_BRACKET"],
+    "METERING_DISPLAY": ["METER_CASE", "METER_WINDOW", "METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "METER_DIGITAL_DISPLAY"],
+    "jyz-taoci_zhushi": ["INSULATOR_SHED"],
+    "jyz-taoci_zhenshi": ["INSULATOR_SHED"]
+  },
+  "对象缺陷载体映射": {
+    "_说明": "阶段三先用对象代码定位一个或多个载体缺陷组，再优先使用部件缺陷精确映射。此映射只决定候选来源，不表示图中一定存在缺陷。",
+    "POLE_TOWER": ["杆塔"],
+    "LINE_CORRIDOR": ["线路通道"],
+    "DTR_3P": ["变压器"],
+    "PTR_MAIN": ["变压器"],
+    "PTR_STATION": ["变压器"],
+    "DIS_ARRESTER_FIXED": ["避雷器"],
+    "DIS_ARRESTER_DETACH": ["避雷器"],
+    "DIS_OVERVOLTAGE_PROTECTOR": ["避雷器"],
+    "DIS_GAP_ARRESTER": ["避雷器"],
+    "SUB_ARRESTER": ["避雷器"],
+    "SUB_CAPACITOR": ["电容器"],
+    "SUB_CAP_BANK": ["电容器"],
+    "DIS_REACTIVE_COMP": ["电容器"],
+    "DIS_SW_BOX": ["柱上开关"],
+    "DIS_BREAKER": ["断路器", "柱上开关"],
+    "SUB_BREAKER": ["断路器"],
+    "DIS_CT": ["互感器或计量装置"],
+    "DIS_HV_METER": ["互感器或计量装置", "表计"],
+    "DIS_LINELOSS_METER": ["互感器或计量装置", "表计"],
+    "DIS_FTU": ["FTU或配电柜"],
+    "DIS_CABINET": ["FTU或配电柜"],
+    "DIS_FAULT_INDICATOR": ["故障指示器"],
+    "DIS_BIRD_REPELLER": ["驱鸟器"],
+    "DIS_ISOLATOR_COMBINED": ["隔离开关"],
+    "DIS_ISOLATOR_SINGLE": ["隔离开关"],
+    "SUB_ISOLATOR": ["隔离开关"],
+    "DIS_DROP_FUSE": ["跌落式熔断器"],
+    "ARR_MONITOR_COUNTER": ["表计"]
+  },
+  "缺陷代码表": [
+    {"代码": "NO_VISIBLE_ANOMALY", "中文名称": "无明显异常", "标签性质": "检查结论", "参与训练": false, "使用说明": "仅用于兼容历史数据；新标注应写入载体的缺陷检查状态，不创建缺陷实例"},
+    {"代码": "OTHER_REVIEW", "中文名称": "其他待复核", "参与训练": false},
+    {"代码": "FOREIGN_OBJECT", "中文名称": "异物"},
+    {"代码": "BIRD_NEST_FOREIGN_OBJECT", "中文名称": "鸟巢状异物"},
+    {"代码": "POLLUTION_DUST", "中文名称": "污染或积尘"},
+    {"代码": "CORROSION", "中文名称": "腐蚀"},
+    {"代码": "CRACK", "中文名称": "裂纹"},
+    {"代码": "DAMAGE", "中文名称": "破损"},
+    {"代码": "DEFORMATION", "中文名称": "变形"},
+    {"代码": "LOOSE", "中文名称": "松动"},
+    {"代码": "DETACHED", "中文名称": "脱落"},
+    {"代码": "MISSING", "中文名称": "缺失"},
+    {"代码": "TILT", "中文名称": "倾斜"},
+    {"代码": "INSTALLATION_NONSTANDARD", "中文名称": "安装不规范"},
+    {"代码": "VISIBLE_CONNECTION_ABNORMAL", "中文名称": "连接不良可见现象"},
+    {"代码": "ENCLOSURE_CORROSION", "中文名称": "箱体或外壳锈蚀"},
+    {"代码": "ENCLOSURE_DAMAGE", "中文名称": "箱体或外壳破损"},
+    {"代码": "BOX_DOOR_OPEN_ABNORMAL", "中文名称": "箱门闭合异常"},
+    {"代码": "TERMINAL_LOOSE_DETACHED", "中文名称": "接线端子松动或脱落"},
+    {"代码": "CABLE_DAMAGE_DETACHED", "中文名称": "连接电缆破损或脱落"},
+    {"代码": "SURFACE_DISCHARGE_MARK", "中文名称": "表面焦斑或放电样痕迹"},
+    {"代码": "INSULATION_DAMAGE", "中文名称": "导线绝缘层破损"},
+    {"代码": "INSULATION_COVER_MISSING", "中文名称": "绝缘防护罩缺失"},
+    {"代码": "INSULATION_COVER_DETACHED", "中文名称": "绝缘防护罩脱落或欲脱落"},
+    {"代码": "OIL_STAIN", "中文名称": "油污痕迹"},
+    {"代码": "OIL_LEAKAGE", "中文名称": "渗漏油"},
+    {"代码": "TR_TANK_CORROSION", "中文名称": "变压器箱体锈蚀"},
+    {"代码": "TR_TANK_DEFORMATION", "中文名称": "变压器箱体变形"},
+    {"代码": "TR_BUSHING_DAMAGE", "中文名称": "变压器套管破损"},
+    {"代码": "TR_BUSHING_POLLUTION_DISCHARGE", "中文名称": "变压器套管污染或放电样痕迹"},
+    {"代码": "TR_CONSERVATOR_OIL_STAIN", "中文名称": "储油柜油污痕迹"},
+    {"代码": "TR_CONSERVATOR_OIL_LEAKAGE", "中文名称": "储油柜渗漏油"},
+    {"代码": "TR_COOLER_OIL_STAIN", "中文名称": "冷却器油污痕迹"},
+    {"代码": "TR_COOLER_OIL_LEAKAGE", "中文名称": "冷却器渗漏油"},
+    {"代码": "TR_RADIATOR_JOINT_OIL_STAIN", "中文名称": "散热器连接部位油污痕迹"},
+    {"代码": "TR_RADIATOR_JOINT_OIL_LEAKAGE", "中文名称": "散热器连接部位渗漏油"},
+    {"代码": "TR_GROUND_LEAD_CORROSION_DETACHED", "中文名称": "变压器接地引下线腐蚀或脱落"},
+    {"代码": "CAP_BULGING", "中文名称": "箱体鼓肚"},
+    {"代码": "CAP_OIL_LEAKAGE", "中文名称": "电容器箱体渗漏油"},
+    {"代码": "CAP_SHELL_CORROSION", "中文名称": "电容器箱体锈蚀"},
+    {"代码": "CAP_SHELL_DAMAGE", "中文名称": "电容器箱体破损"},
+    {"代码": "CAP_BUSHING_POLLUTION", "中文名称": "电容器套管污染"},
+    {"代码": "CAP_BUSHING_DAMAGE", "中文名称": "电容器套管破损"},
+    {"代码": "CAP_TERMINAL_LOOSE_DETACHED", "中文名称": "电容器接线端子松动或脱落"},
+    {"代码": "CAP_FUSE_VISIBLE_ABNORMAL", "中文名称": "电容器熔断器异常可见现象"},
+    {"代码": "ARRESTER_BODY_DAMAGE", "中文名称": "避雷器本体破损"},
+    {"代码": "ARRESTER_SHED_DAMAGE", "中文名称": "避雷器伞裙破损"},
+    {"代码": "ARRESTER_MISSING", "中文名称": "避雷器缺失"},
+    {"代码": "ARRESTER_POLLUTION_DISCHARGE", "中文名称": "避雷器污染或放电样痕迹"},
+    {"代码": "ARRESTER_BODY_DETACHED", "中文名称": "避雷器本体脱离"},
+    {"代码": "ARRESTER_HV_LEAD_BROKEN_DETACHED", "中文名称": "避雷器高压引线断裂或脱落"},
+    {"代码": "ARRESTER_GROUND_LEAD_BROKEN_DETACHED", "中文名称": "避雷器接地引线断裂或脱落"},
+    {"代码": "ARRESTER_MONITOR_VISIBLE_ABNORMAL", "中文名称": "避雷器监测表计外观异常"},
+    {"代码": "INSULATOR_DAMAGE", "中文名称": "绝缘子破损"},
+    {"代码": "INSULATOR_POLLUTION", "中文名称": "绝缘子污染"},
+    {"代码": "INSULATOR_DISCHARGE_MARK", "中文名称": "绝缘子放电样痕迹"},
+    {"代码": "INSULATOR_FIXED_LOOSE_TILT", "中文名称": "绝缘子固定松动或倾斜"},
+    {"代码": "INSULATOR_CONDUCTOR_UNBOUND", "中文名称": "瓷绝缘子导线未绑扎"},
+    {"代码": "INSULATOR_CLIP_MISSING_LOOSE", "中文名称": "复合绝缘子卡扣缺失或松动"},
+    {"代码": "CONDUCTOR_BROKEN_STRAND", "中文名称": "导线断股"},
+    {"代码": "CONDUCTOR_BROKEN_FALLEN", "中文名称": "导线或引线断裂脱落"},
+    {"代码": "CONDUCTOR_FOREIGN_OBJECT", "中文名称": "导线异物"},
+    {"代码": "CONDUCTOR_BINDING_NONSTANDARD", "中文名称": "导线绑扎不规范"},
+    {"代码": "BARE_WIRE_BIND_INSULATED_CONDUCTOR", "中文名称": "裸金属线绑扎绝缘导线"},
+    {"代码": "CLAMP_LOOSE_DETACHED", "中文名称": "线夹组件松动或脱落"},
+    {"代码": "CLAMP_CORROSION", "中文名称": "线夹腐蚀"},
+    {"代码": "TENSION_CLAMP_COVER_MISSING_DAMAGE", "中文名称": "耐张线夹绝缘罩缺失或破损"},
+    {"代码": "PIN_MISSING", "中文名称": "销钉缺失"},
+    {"代码": "NUT_LOOSE", "中文名称": "螺母松动"},
+    {"代码": "NUT_MISSING", "中文名称": "螺母缺失"},
+    {"代码": "BOLT_MISSING", "中文名称": "螺栓缺失"},
+    {"代码": "SMALL_HARDWARE_CORROSION", "中文名称": "小金具锈蚀"},
+    {"代码": "CONNECTION_HARDWARE_CORROSION", "中文名称": "连接金具锈蚀"},
+    {"代码": "CROSSARM_DEFORMATION", "中文名称": "横担弯曲倾斜或变形"},
+    {"代码": "CROSSARM_CORROSION", "中文名称": "横担锈蚀"},
+    {"代码": "TOWER_CRACK", "中文名称": "杆塔裂纹"},
+    {"代码": "TOWER_TILT", "中文名称": "杆塔倾斜"},
+    {"代码": "TOWER_BODY_DAMAGE", "中文名称": "杆塔本体破损"},
+    {"代码": "TOWER_FOREIGN_OBJECT", "中文名称": "杆塔异物"},
+    {"代码": "TOWER_BIRD_NEST", "中文名称": "杆塔鸟巢"},
+    {"代码": "TOWER_VINE", "中文名称": "杆塔藤蔓"},
+    {"代码": "TOWER_TOP_DAMAGE", "中文名称": "杆塔顶部破损"},
+    {"代码": "TOWER_BASE_SETTLEMENT", "中文名称": "杆塔基础沉降"},
+    {"代码": "TOWER_BASE_DEBRIS", "中文名称": "杆塔基础堆积物"},
+    {"代码": "TOWER_BASE_SEDIMENT", "中文名称": "杆塔根部泥沙堆积"},
+    {"代码": "POLE_NUMBER_PLATE_MISSING", "中文名称": "杆号牌缺失"},
+    {"代码": "GUY_WIRE_STRAND_LOOSE", "中文名称": "拉线散股"},
+    {"代码": "GUY_WIRE_CORROSION", "中文名称": "拉线锈蚀"},
+    {"代码": "HOOP_CORROSION", "中文名称": "抱箍锈蚀"},
+    {"代码": "FLANGE_BOLT_CORROSION", "中文名称": "法兰或螺栓法兰锈蚀"},
+    {"代码": "BIRD_REPELLER_DAMAGE", "中文名称": "驱鸟器破损"},
+    {"代码": "CORRIDOR_DEBRIS", "中文名称": "通道垃圾堆积"},
+    {"代码": "TREE_BAMBOO_OBSTRUCTION", "中文名称": "树竹障碍"},
+    {"代码": "BREAKER_BOX_DOOR_OPEN_ABNORMAL", "中文名称": "断路器机构箱门闭合异常"},
+    {"代码": "OPERATING_MECH_CORROSION", "中文名称": "操动机构锈蚀"},
+    {"代码": "CT_BUSHING_DAMAGE", "中文名称": "互感器套管破损"},
+    {"代码": "CT_BUSHING_POLLUTION_DISCHARGE", "中文名称": "互感器套管污染或放电样痕迹"},
+    {"代码": "CT_ENCLOSURE_CORROSION", "中文名称": "互感器或高压计量装置外壳锈蚀"},
+    {"代码": "CT_ENCLOSURE_DAMAGE", "中文名称": "互感器或高压计量装置外壳破损"},
+    {"代码": "FAULT_INDICATOR_INSTALL_LOOSE", "中文名称": "故障指示器安装不牢固"},
+    {"代码": "ISOLATOR_BODY_CORROSION", "中文名称": "隔离开关本体锈蚀"},
+    {"代码": "ISOLATOR_SUPPORT_INSULATOR_DAMAGE", "中文名称": "隔离开关支撑绝缘子破损"},
+    {"代码": "ISOLATOR_SUPPORT_INSULATOR_POLLUTION_DISCHARGE", "中文名称": "隔离开关支撑绝缘子污染或放电样痕迹"},
+    {"代码": "DROP_FUSE_POLLUTION_DISCHARGE", "中文名称": "跌落式熔断器污染或放电样痕迹"},
+    {"代码": "DROP_FUSE_SUPPORT_INSULATOR_DAMAGE", "中文名称": "跌落式熔断器支撑绝缘子破损"},
+    {"代码": "DROP_FUSE_CORROSION", "中文名称": "跌落式熔断器锈蚀"},
+    {"代码": "EQUIPMENT_GROUND_LEAD_CORROSION_POOR_CONTACT", "中文名称": "设备接地引下线锈蚀或接触不良可见现象"},
+    {"代码": "GROUND_LEAD_BROKEN_DETACHED", "中文名称": "接地引下线断裂或脱落"},
+    {"代码": "METER_CASE_DAMAGE", "中文名称": "表计外壳破损"},
+    {"代码": "METER_WINDOW_POLLUTION_DAMAGE", "中文名称": "表计视窗污染或破损"},
+    {"代码": "METER_POINTER_REVIEW", "中文名称": "指针状态异常待复核", "参与训练": false},
+    {"代码": "METER_UNREADABLE", "中文名称": "读数不可辨认"},
+    {"代码": "METER_CABLE_DAMAGE_DETACHED", "中文名称": "表计连接电缆破损或脱落"}
+  ],
+  "载体缺陷候选": {
+    "通用设备或部件": ["OTHER_REVIEW", "FOREIGN_OBJECT", "POLLUTION_DUST", "CORROSION", "CRACK", "DAMAGE", "DEFORMATION", "LOOSE", "DETACHED", "MISSING", "TILT", "INSTALLATION_NONSTANDARD", "VISIBLE_CONNECTION_ABNORMAL", "SURFACE_DISCHARGE_MARK"],
+    "变压器": ["OIL_STAIN", "OIL_LEAKAGE", "TR_TANK_CORROSION", "TR_TANK_DEFORMATION", "TR_BUSHING_DAMAGE", "TR_BUSHING_POLLUTION_DISCHARGE", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "FOREIGN_OBJECT", "BIRD_NEST_FOREIGN_OBJECT", "TR_GROUND_LEAD_CORROSION_DETACHED", "TR_CONSERVATOR_OIL_STAIN", "TR_CONSERVATOR_OIL_LEAKAGE", "TR_COOLER_OIL_STAIN", "TR_COOLER_OIL_LEAKAGE", "TR_RADIATOR_JOINT_OIL_STAIN", "TR_RADIATOR_JOINT_OIL_LEAKAGE"],
+    "避雷器": ["ARRESTER_BODY_DAMAGE", "ARRESTER_SHED_DAMAGE", "ARRESTER_MISSING", "ARRESTER_POLLUTION_DISCHARGE", "ARRESTER_BODY_DETACHED", "ARRESTER_HV_LEAD_BROKEN_DETACHED", "ARRESTER_GROUND_LEAD_BROKEN_DETACHED", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "ARRESTER_MONITOR_VISIBLE_ABNORMAL", "METER_UNREADABLE"],
+    "电容器": ["CAP_BULGING", "CAP_OIL_LEAKAGE", "CAP_SHELL_CORROSION", "CAP_SHELL_DAMAGE", "CAP_BUSHING_POLLUTION", "CAP_BUSHING_DAMAGE", "CAP_TERMINAL_LOOSE_DETACHED", "CAP_FUSE_VISIBLE_ABNORMAL"],
+    "绝缘子与线路元件": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_FIXED_LOOSE_TILT", "INSULATOR_CONDUCTOR_UNBOUND", "INSULATOR_CLIP_MISSING_LOOSE", "SURFACE_DISCHARGE_MARK", "INSULATION_DAMAGE", "CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT", "CONDUCTOR_BINDING_NONSTANDARD", "BARE_WIRE_BIND_INSULATED_CONDUCTOR", "CLAMP_LOOSE_DETACHED", "CLAMP_CORROSION", "TENSION_CLAMP_COVER_MISSING_DAMAGE", "PIN_MISSING", "NUT_LOOSE", "NUT_MISSING", "BOLT_MISSING", "SMALL_HARDWARE_CORROSION", "CONNECTION_HARDWARE_CORROSION", "CROSSARM_DEFORMATION", "CROSSARM_CORROSION"],
+    "杆塔": ["TOWER_CRACK", "TOWER_TILT", "TOWER_BODY_DAMAGE", "TOWER_FOREIGN_OBJECT", "TOWER_BIRD_NEST", "TOWER_VINE", "TOWER_TOP_DAMAGE", "TOWER_BASE_SETTLEMENT", "TOWER_BASE_DEBRIS", "TOWER_BASE_SEDIMENT", "POLE_NUMBER_PLATE_MISSING", "GUY_WIRE_STRAND_LOOSE", "GUY_WIRE_CORROSION", "HOOP_CORROSION", "FLANGE_BOLT_CORROSION"],
+    "线路通道": ["CORRIDOR_DEBRIS", "TREE_BAMBOO_OBSTRUCTION", "OTHER_REVIEW"],
+    "断路器": ["BREAKER_BOX_DOOR_OPEN_ABNORMAL", "OPERATING_MECH_CORROSION", "CORROSION", "LOOSE", "DAMAGE", "POLLUTION_DUST"],
+    "柱上开关": ["OPERATING_MECH_CORROSION", "ENCLOSURE_CORROSION", "ENCLOSURE_DAMAGE", "BOX_DOOR_OPEN_ABNORMAL", "TERMINAL_LOOSE_DETACHED", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED"],
+    "互感器或计量装置": ["CT_BUSHING_DAMAGE", "CT_BUSHING_POLLUTION_DISCHARGE", "CT_ENCLOSURE_CORROSION", "CT_ENCLOSURE_DAMAGE", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "TERMINAL_LOOSE_DETACHED"],
+    "FTU或配电柜": ["ENCLOSURE_CORROSION", "ENCLOSURE_DAMAGE", "BOX_DOOR_OPEN_ABNORMAL", "CABLE_DAMAGE_DETACHED", "TERMINAL_LOOSE_DETACHED", "POLLUTION_DUST"],
+    "故障指示器": ["FAULT_INDICATOR_INSTALL_LOOSE", "DAMAGE", "MISSING", "CABLE_DAMAGE_DETACHED"],
+    "驱鸟器": ["BIRD_REPELLER_DAMAGE", "LOOSE", "DETACHED", "MISSING"],
+    "隔离开关": ["ISOLATOR_BODY_CORROSION", "ISOLATOR_SUPPORT_INSULATOR_DAMAGE", "ISOLATOR_SUPPORT_INSULATOR_POLLUTION_DISCHARGE", "LOOSE", "DETACHED", "VISIBLE_CONNECTION_ABNORMAL"],
+    "跌落式熔断器": ["DROP_FUSE_POLLUTION_DISCHARGE", "DROP_FUSE_SUPPORT_INSULATOR_DAMAGE", "DROP_FUSE_CORROSION", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED"],
+    "表计": ["METER_CASE_DAMAGE", "METER_WINDOW_POLLUTION_DAMAGE", "METER_POINTER_REVIEW", "METER_UNREADABLE", "METER_CABLE_DAMAGE_DETACHED"]
+  },
+  "缺陷检查结论候选": [
+    {"代码": "CHECK_DEFECT_FOUND", "中文名称": "已完成有缺陷"},
+    {"代码": "NO_VISIBLE_ANOMALY", "中文名称": "无明显异常", "展示说明": "已完成检查，未发现明显异常"},
+    {"代码": "CHECK_NOT_VISIBLE", "中文名称": "载体或检查部位本图不可见"},
+    {"代码": "CHECK_UNDETERMINED", "中文名称": "图像证据不足无法判定"},
+    {"代码": "CHECK_HUMAN_REVIEW", "中文名称": "待人工复核"},
+    {"代码": "CHECK_NOT_APPLICABLE", "中文名称": "不适用于当前任务"},
+    {"代码": "CHECK_UNPROCESSED", "中文名称": "未处理", "允许进入训练": false}
+  ],
+  "部件缺陷精确映射": {
+    "TR_TANK_TOP": ["FOREIGN_OBJECT", "BIRD_NEST_FOREIGN_OBJECT", "TR_TANK_CORROSION", "TR_TANK_DEFORMATION", "OIL_STAIN", "OIL_LEAKAGE"],
+    "TR_HV_BUSHING": ["TR_BUSHING_DAMAGE", "TR_BUSHING_POLLUTION_DISCHARGE", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED"],
+    "TR_LV_BUSHING": ["TR_BUSHING_DAMAGE", "TR_BUSHING_POLLUTION_DISCHARGE", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED"],
+    "TR_CONSERVATOR": ["TR_CONSERVATOR_OIL_STAIN", "TR_CONSERVATOR_OIL_LEAKAGE", "CORROSION", "DAMAGE"],
+    "TR_COOLER": ["TR_COOLER_OIL_STAIN", "TR_COOLER_OIL_LEAKAGE", "CORROSION", "DAMAGE"],
+    "TR_RADIATOR": ["OIL_STAIN", "OIL_LEAKAGE", "CORROSION", "DAMAGE"],
+    "TR_PIPE_JOINT": ["TR_RADIATOR_JOINT_OIL_STAIN", "TR_RADIATOR_JOINT_OIL_LEAKAGE", "CORROSION", "LOOSE"],
+    "TR_GROUND_LEAD": ["TR_GROUND_LEAD_CORROSION_DETACHED", "GROUND_LEAD_BROKEN_DETACHED"],
+    "ARR_BODY": ["ARRESTER_BODY_DAMAGE", "ARRESTER_POLLUTION_DISCHARGE", "ARRESTER_BODY_DETACHED", "ARRESTER_MISSING"],
+    "ARR_SHED": ["ARRESTER_SHED_DAMAGE", "ARRESTER_POLLUTION_DISCHARGE"],
+    "ARR_HV_LEAD": ["ARRESTER_HV_LEAD_BROKEN_DETACHED"],
+    "ARR_GROUND_LEAD": ["ARRESTER_GROUND_LEAD_BROKEN_DETACHED"],
+    "ARR_COVER": ["INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "DAMAGE"],
+    "ARR_MONITOR_COUNTER": ["ARRESTER_MONITOR_VISIBLE_ABNORMAL", "METER_UNREADABLE"],
+    "CAP_SHELL": ["CAP_BULGING", "CAP_OIL_LEAKAGE", "CAP_SHELL_CORROSION", "CAP_SHELL_DAMAGE"],
+    "CAP_SIDE_PANEL": ["CAP_BULGING", "CAP_SHELL_CORROSION", "CAP_SHELL_DAMAGE"],
+    "CAP_BUSHING": ["CAP_BUSHING_POLLUTION", "CAP_BUSHING_DAMAGE"],
+    "CAP_TERMINAL": ["CAP_TERMINAL_LOOSE_DETACHED", "CORROSION"],
+    "CAP_FUSE": ["CAP_FUSE_VISIBLE_ABNORMAL"],
+    "BRK_BOX_DOOR": ["BREAKER_BOX_DOOR_OPEN_ABNORMAL", "CORROSION", "DAMAGE"],
+    "BRK_OPERATING_MECH": ["OPERATING_MECH_CORROSION", "LOOSE", "DAMAGE"],
+    "daoxian-jueyuan": ["SURFACE_DISCHARGE_MARK", "INSULATION_DAMAGE", "CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT", "CONDUCTOR_BINDING_NONSTANDARD", "BARE_WIRE_BIND_INSULATED_CONDUCTOR"],
+    "daoxian-luo": ["CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT"],
+    "jinju-xianjia-bingxian": ["CLAMP_LOOSE_DETACHED", "CLAMP_CORROSION", "BOLT_MISSING", "NUT_LOOSE", "NUT_MISSING"],
+    "jyz-taoci_zhushi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_FIXED_LOOSE_TILT"],
+    "jyz-taoci_zhenshi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_CONDUCTOR_UNBOUND"],
+    "hengdan-jiaotiedanhengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
+    "hengdan-jiaotieshuanghengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
+    "hengdan-daixiechenghengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
+    "ganghengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
+    "laxian": ["GUY_WIRE_STRAND_LOOSE", "GUY_WIRE_CORROSION", "LOOSE", "DETACHED"],
+    "ganhaopai": ["POLE_NUMBER_PLATE_MISSING", "DAMAGE", "LOOSE"],
+    "jingshipai": ["MISSING", "DAMAGE", "LOOSE"],
+    "xiangxupai": ["MISSING", "DAMAGE", "LOOSE"],
+    "taiqumingpai": ["MISSING", "DAMAGE", "LOOSE"],
+    "TOWER_BODY": ["TOWER_CRACK", "TOWER_TILT", "TOWER_BODY_DAMAGE", "TOWER_FOREIGN_OBJECT", "TOWER_BIRD_NEST", "TOWER_VINE", "CORROSION"],
+    "TOWER_TOP": ["TOWER_TOP_DAMAGE", "TOWER_FOREIGN_OBJECT", "TOWER_BIRD_NEST", "TOWER_VINE"],
+    "TOWER_BASE": ["TOWER_BASE_SETTLEMENT", "TOWER_BASE_DEBRIS", "TOWER_BASE_SEDIMENT"],
+    "TOWER_FLANGE": ["FLANGE_BOLT_CORROSION", "LOOSE", "MISSING"],
+    "TOWER_FASTENER": ["FLANGE_BOLT_CORROSION", "BOLT_MISSING", "NUT_LOOSE", "NUT_MISSING"],
+    "TOWER_HOOP": ["HOOP_CORROSION", "LOOSE", "DETACHED", "MISSING"],
+    "METER_CASE": ["METER_CASE_DAMAGE", "CORROSION"],
+    "METER_WINDOW": ["METER_WINDOW_POLLUTION_DAMAGE"],
+    "METER_POINTER": ["METER_POINTER_REVIEW", "METER_UNREADABLE"],
+    "METER_COUNTER_WINDOW": ["METER_UNREADABLE"],
+    "METER_CABLE": ["METER_CABLE_DAMAGE_DETACHED"]
+  },
+  "跨字段约束规则": [
+    {
+      "规则编号": "MAT-CONCRETE-BODY-001",
+      "规则名称": "水泥杆杆体禁止金属腐蚀标签",
+      "执行层": "规则引擎",
+      "生效阶段": "DEFECT",
+      "条件": {"载体代码": ["TOWER_BODY"], "父设施属性.杆塔材质": ["shuinigan"]},
+      "禁止缺陷": ["CORROSION", "FLANGE_BOLT_CORROSION", "HOOP_CORROSION"],
+      "问题级别": "阻断",
+      "说明": "只约束混凝土杆体；水泥杆上的金属抱箍、横担、法兰和紧固件仍可出现相应锈蚀。"
+    },
+    {
+      "规则编号": "MAT-COMPOSITE-BODY-001",
+      "规则名称": "复合材料杆杆体禁止金属腐蚀标签",
+      "执行层": "规则引擎",
+      "生效阶段": "DEFECT",
+      "条件": {"载体代码": ["TOWER_BODY"], "父设施属性.杆塔材质": ["fuhecailiaogan"]},
+      "禁止缺陷": ["CORROSION", "FLANGE_BOLT_CORROSION", "HOOP_CORROSION"],
+      "问题级别": "阻断",
+      "说明": "只约束复合材料杆体，不扩展到其金属连接件。"
+    },
+    {
+      "规则编号": "MAT-METAL-BODY-001",
+      "规则名称": "金属杆塔杆体允许腐蚀候选",
+      "执行层": "候选选择器",
+      "生效阶段": "DEFECT",
+      "条件": {"载体代码": ["TOWER_BODY"], "父设施属性.杆塔材质": ["gangguangan", "jiaogangta"]},
+      "保留缺陷": ["CORROSION"],
+      "说明": "钢管杆和角钢塔本体属于金属载体，不能套用水泥杆的禁锈规则。"
+    },
+    {
+      "规则编号": "TASK-METER-001",
+      "规则名称": "表计读取优先写入状态量",
+      "执行层": "规则引擎与大模型复核",
+      "生效阶段": "DEFECT",
+      "条件": {"拍摄任务": ["表计读取"], "载体代码": ["METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "METER_DIGITAL_DISPLAY", "ARR_MONITOR_COUNTER"]},
+      "要求": "正常读数或读数不可判定写入状态量标注；只有可见外观异常才建立缺陷实例",
+      "问题级别": "阻断"
+    },
+    {
+      "规则编号": "EVIDENCE-OIL-001",
+      "规则名称": "油污现象与渗漏原因分离",
+      "执行层": "大模型语义复核",
+      "生效阶段": "VALIDATE",
+      "条件": {"缺陷代码": ["OIL_LEAKAGE", "TR_CONSERVATOR_OIL_LEAKAGE", "TR_COOLER_OIL_LEAKAGE", "TR_RADIATOR_JOINT_OIL_LEAKAGE"]},
+      "要求": "若单幅图像只能看到油污状痕迹而不能支持持续渗漏，应优先使用对应油污痕迹标签，渗漏原因转待复核",
+      "问题级别": "阻断或待人工复核"
+    },
+    {
+      "规则编号": "SOURCE-CAUSE-001",
+      "规则名称": "文件名故障原因不得替代视觉结论",
+      "执行层": "规则引擎与大模型复核",
+      "生效阶段": "VALIDATE",
+      "条件": {"外部信息来源": ["文件名解析"], "信息类型": ["故障原因", "严重等级"]},
+      "要求": "必须保留外部来源；图像不能验证时写入不确定信息或人工复核，不得改写为确定的视觉事实",
+      "问题级别": "阻断"
+    }
+  ],
+  "自动校验配置": {
+    "_说明": "阶段四先运行确定性规则校验；存在阻断问题时直接退回，不调用大模型。规则通过或仅有警告时才执行大模型语义复核。",
+    "规则校验顺序": [
+      "JSON结构校验",
+      "标签台账校验",
+      "渐进披露轨迹校验",
+      "候选树路径校验",
+      "对象树关系校验",
+      "载体缺陷兼容校验",
+      "静态属性约束校验",
+      "来源和证据形式校验",
+      "任务完整性校验"
+    ],
+    "大模型语义复核维度": [
+      "图像路由合理性",
+      "主要对象和对象树合理性",
+      "设备部件识别合理性",
+      "缺陷与直接可见证据一致性",
+      "明显对象或异常遗漏",
+      "文件名和视觉结论来源隔离",
+      "多模态描述与结构化事实一致性"
+    ],
+    "问题级别候选": ["阻断", "警告", "提示", "不适用"],
+    "审核结论候选": ["通过", "通过但有警告", "需要修改", "待人工复核", "不适用"],
+    "退回阶段候选": ["ROUTE", "SUBJECT", "DEFECT", "VALIDATE", null],
+    "最终门禁规则": {
+      "允许生成派生输出": "规则校验无阻断且大模型语义复核通过或通过但有警告",
+      "允许进入训练": "最终门禁通过、无未处理项、无候选外正式标签且批次数据校验通过",
+      "修改后处理": "任何结构化标签修改都会使旧校验结果和派生文本失效，必须从受影响阶段重新校验"
+    }
+  },
+  "当前项目文件名覆盖词": {
+    "设备词": ["配电变压器", "主变压器", "站用变压器", "断路器", "避雷器", "避雷器监测表计", "并联电容器", "并联电容器组", "绝缘子", "绝缘导线"],
+    "部件词": ["箱盖", "套管", "绝缘防护罩", "储油柜", "油位计", "散热器", "连接管接头或法兰", "冷却器", "控制箱", "箱门", "电容器箱体", "箱体侧板", "伞裙", "放电计数器", "刻度盘", "指针", "机械计数窗", "线夹"],
+    "缺陷或任务词": ["异物", "鸟巢状异物", "绝缘防护罩缺失", "绝缘防护罩脱落或欲脱落", "表面焦斑或放电样痕迹", "断路器机构箱门闭合异常", "储油柜渗漏油", "冷却器渗漏油", "散热器连接部位渗漏油", "避雷器本体破损", "避雷器伞裙破损", "避雷器缺失", "箱体鼓肚", "表计读取"],
+    "当前64张图片必须存在的设备代码": ["DTR_3P", "PTR_MAIN", "PTR_STATION", "SUB_BREAKER", "DIS_ARRESTER_FIXED", "SUB_ARRESTER", "SUB_CAPACITOR", "SUB_CAP_BANK"],
+    "当前64张图片必须存在的部件代码": ["TR_TANK_TOP", "TR_HV_BUSHING", "TR_LV_BUSHING", "INSULATION_COVER", "TR_CONSERVATOR", "TR_OIL_GAUGE", "TR_RADIATOR", "TR_PIPE_JOINT", "TR_COOLER", "BRK_CONTROL_BOX", "BRK_BOX_DOOR", "CAP_SHELL", "CAP_SIDE_PANEL", "ARR_SHED", "ARR_MONITOR_COUNTER", "METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "daoxian-jueyuan", "jinju-xianjia-bingxian", "jyz-taoci_zhushi"],
+    "当前64张图片必须存在的缺陷代码": ["FOREIGN_OBJECT", "BIRD_NEST_FOREIGN_OBJECT", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "SURFACE_DISCHARGE_MARK", "BREAKER_BOX_DOOR_OPEN_ABNORMAL", "TR_CONSERVATOR_OIL_STAIN", "TR_CONSERVATOR_OIL_LEAKAGE", "TR_COOLER_OIL_STAIN", "TR_COOLER_OIL_LEAKAGE", "TR_RADIATOR_JOINT_OIL_STAIN", "TR_RADIATOR_JOINT_OIL_LEAKAGE", "ARRESTER_BODY_DAMAGE", "ARRESTER_SHED_DAMAGE", "ARRESTER_MISSING", "CAP_BULGING", "NO_VISIBLE_ANOMALY", "METER_UNREADABLE"]
+  },
+  "缺陷判定状态候选": ["缺陷", "疑似缺陷", "可见异常但类别待复核", "未发现明显异常", "不可判定"],
+  "标签性质候选": ["实标签", "虚标签", "辅助标签"],
+  "任务完成状态候选": ["已完成有目标", "已完成无目标", "本图不可见", "属性不可判定", "待人工复核", "不适用于当前场景", "未处理"]
+}

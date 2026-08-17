@@ -1,0 +1,8 @@
+interface:
+  display_name: "电力图像渐进式标注"
+  short_description: "按四阶段渐进加载电力设施、设备、部件与缺陷标签并执行双重校验"
+  brand_color: "#F59E0B"
+  default_prompt: "使用 $power-image-annotation 对电力图像执行渐进式路由、树形标注、载体缺陷选择和两阶段校验。"
+
+policy:
+  allow_implicit_invocation: true
