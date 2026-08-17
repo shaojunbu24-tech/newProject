@@ -7,8 +7,9 @@
 只是带版本摘要的运行时快照，不能人工双份修改。本脚本执行机械同步并生成SHA-256
 清单，便于发现Skill快照落后于项目源文件的情况。
 
-调用者必须通过``--source-dir``显式指定包含四个2.0文件的目录。这样Skill仓库不
-绑定维护者的本机路径，也不会在资源清单中泄露用户目录。脚本只覆盖Skill自己的
+调用者必须通过``--source-dir``显式指定2.0规则目录。除三份参考资料和一份JSON
+模板外，脚本还同步配电、输电绝缘子严格结构示例。这样Skill仓库不绑定维护者的
+本机路径，也不会在资源清单中泄露用户目录。脚本只覆盖Skill自己的
 references/assets资源，不修改项目源文件。
 """
 
@@ -31,6 +32,13 @@ REFERENCE_FILES = (
     "候选标签覆盖审计2.0.md",
 )
 ASSET_FILES = ("标注规则2.0.json",)
+
+# 只同步经过严格校验、明确标注为“结构回归且不进入训练”的示例。旧版示例缺少
+# 候选披露轨迹和载体检查状态，继续放入Skill会诱导其他代理复制兼容格式。
+STRICT_EXAMPLE_FILES = (
+    "绝缘子釉表面灼伤-配电-严格结构示例.json",
+    "绝缘子釉表面灼伤-输电-严格结构示例.json",
+)
 
 
 def sha256_file(path: Path) -> str:
@@ -85,6 +93,13 @@ def main() -> None:
     for name in ASSET_FILES:
         manifest_entries.append(
             copy_resource(source_dir / name, SKILL_ROOT / "assets" / name)
+        )
+    for name in STRICT_EXAMPLE_FILES:
+        manifest_entries.append(
+            copy_resource(
+                source_dir / "例子" / name,
+                SKILL_ROOT / "assets" / "examples" / name,
+            )
         )
 
     manifest = {

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """运行Skill的无图像确定性回归测试。
 
-测试覆盖三个最容易发生规则漂移的路径：
+测试覆盖最容易发生规则漂移的路径：
 
 1. 配电架空场景选择三相变压器后，只加载变压器部件；
 2. 水泥杆杆体候选中删除腐蚀，角钢塔杆体保留腐蚀；
 3. 水泥杆上的金属抱箍仍允许抱箍锈蚀；
 4. 一份包含完整候选轨迹、对象树、缺陷和证据的新标注通过阶段四A。
+5. 配电十二种绝缘子和输电绝缘子专项不会错误继承父杆塔缺陷；
+6. 釉表面灼伤、放电、污秽、电弧烧伤和闪络痕迹均有受控候选。
 
 脚本使用内存对象，不创建或修改用户标注文件。
 """
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Any
 
 from select_candidates import (
@@ -251,6 +254,80 @@ def main() -> None:
     assert "CORROSION" in steel_codes
     assert "HOOP_CORROSION" in hoop_codes
 
+    # 输电架空线路仍不是全专业标签包，但绝缘子专项必须能够建立正式设施和部件
+    # 路径，避免所有样本被迫使用OTHER_REVIEW。
+    transmission_scene = find_scene(ledger, "TRA", "TRA_OHL")
+    tra_facilities, tra_devices, _ = subject_candidates(
+        transmission_scene, include_nontrainable=False
+    )
+    assert {item["代码"] for item in tra_facilities} == {
+        "TRA_TOWER",
+        "TRA_LINE_CORRIDOR",
+    }
+    assert tra_devices == []
+    tra_parts, _ = part_candidates(
+        ledger,
+        transmission_scene,
+        "TRA_TOWER",
+        index,
+        include_nontrainable=False,
+    )
+    tra_part_codes = {item["代码"] for item in tra_parts}
+    assert {"TRA_INSULATOR_STRING", "INSULATOR_GENERIC"}.issubset(tra_part_codes)
+
+    # 配电PDF中的十二种绝缘子都必须得到绝缘子专用候选，且绝不能出现杆塔裂纹、
+    # 倾斜或抱箍锈蚀。陶瓷绝缘子还应开放釉表面灼伤这一材质专用可见现象。
+    insulator_codes = {
+        "jyz-boli_xuanshi",
+        "jyz-taoci_xuanshi",
+        "jyz-fuhe_bangxing_xuanshi",
+        "jyz-taoci_bangxing_xuanshi",
+        "jyz-taoci_hengdan",
+        "jyz-taoci_zhushi",
+        "jyz-fuhe_zhenshi",
+        "jyz-fuhe_fanglei_zhenshi",
+        "jyz-taoci_zhenshi",
+        "jyz-taoci_dieshi",
+        "jyz-taoci_laxian",
+        "jyz-taoci_fanglei_zhushi",
+    }
+    forbidden_tower_defects = {"TOWER_CRACK", "TOWER_TILT", "HOOP_CORROSION"}
+    for insulator_code in insulator_codes:
+        disclosed = set(
+            disclosed_defect_codes(
+                ledger, index, insulator_code, "POLE_TOWER", {}
+            )
+        )
+        assert {"INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK"}.issubset(
+            disclosed
+        )
+        assert not (disclosed & forbidden_tower_defects)
+        if "taoci" in insulator_code:
+            assert "INSULATOR_GLAZE_BURN_MARK" in disclosed
+
+    glaze_codes = set(
+        disclosed_defect_codes(
+            ledger, index, "INSULATOR_GLAZE_SURFACE", "PORCELAIN_INSULATOR_BODY", {}
+        )
+    )
+    assert {
+        "INSULATOR_GLAZE_BURN_MARK",
+        "INSULATOR_DISCHARGE_MARK",
+        "INSULATOR_ARC_BURN_MARK",
+        "INSULATOR_FLASHOVER_TRACE",
+        "INSULATOR_POLLUTION",
+    }.issubset(glaze_codes)
+
+    # 模拟未来新增但尚未建立精确映射的jyz型号，验证前缀族回退仍返回绝缘子候选，
+    # 而不是沿父对象回退到杆塔结构缺陷。
+    future_insulator_codes = set(
+        disclosed_defect_codes(
+            ledger, index, "jyz-future-type", "POLE_TOWER", {}
+        )
+    )
+    assert "INSULATOR_DISCHARGE_MARK" in future_insulator_codes
+    assert not (future_insulator_codes & forbidden_tower_defects)
+
     annotation = build_valid_annotation(ledger, index)
     report = Validator(annotation, ledger, allow_legacy=False).run()["规则校验"]
     assert report["阻断问题数量"] == 0, json.dumps(report, ensure_ascii=False, indent=2)
@@ -258,7 +335,34 @@ def main() -> None:
     captions = render(annotation)
     assert "三相配电变压器" in captions["纯视觉完整描述"]
     assert "异物" in captions["简短检索描述"]
-    print("Skill自检通过：渐进候选、材质约束、载体缺陷和严格规则校验均符合预期。")
+
+    # Skill随包携带的配电、输电绝缘子严格结构示例必须在生产严格模式下达到零阻断、
+    # 零警告，并且任何候选轨迹都不能实际选择OTHER_REVIEW。候选数组仍保留该兜底，
+    # 但已覆盖场景应优先选择正式代码或不可判定/复核检查结论。
+    example_dir = Path(__file__).resolve().parents[1] / "assets" / "examples"
+    for example_name in (
+        "绝缘子釉表面灼伤-配电-严格结构示例.json",
+        "绝缘子釉表面灼伤-输电-严格结构示例.json",
+    ):
+        example = json.loads((example_dir / example_name).read_text(encoding="utf-8"))
+        chosen_codes = {
+            code
+            for trace in example["标注流程状态"]["候选披露轨迹"]
+            for code in trace["选择代码"]
+        }
+        assert "OTHER_REVIEW" not in chosen_codes
+        example_report = Validator(
+            example, ledger, allow_legacy=False
+        ).run()["规则校验"]
+        assert example_report["阻断问题数量"] == 0, json.dumps(
+            example_report, ensure_ascii=False, indent=2
+        )
+        assert example_report["警告问题数量"] == 0, json.dumps(
+            example_report, ensure_ascii=False, indent=2
+        )
+        assert example_report["包含候选外标签"] is False
+        assert example_report["允许进入训练前置条件"] is True
+    print("Skill自检通过：渐进候选、材质约束、绝缘子专项、载体缺陷和严格规则校验均符合预期。")
 
 
 if __name__ == "__main__":

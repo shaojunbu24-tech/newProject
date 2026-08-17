@@ -1,0 +1,276 @@
+{
+  "_示例用途": "用于验证绝缘子专项的候选披露、对象嵌套、缺陷载体和严格规则门禁；不对应138张批次中的某一张真实图片，不替代逐图视觉审核。",
+  "标注规范版本": "电力设备多模态标注-v2.0",
+  "标签台账版本": "2.0",
+  "图像基本信息": {
+    "图像编号": "REGRESSION-INSULATOR-DIS-001",
+    "原始文件名": "10kV示例线-示例杆-雷击-釉表面灼伤-严重.jpg",
+    "原始图像路径": "仅用于结构回归，不绑定真实图像",
+    "图像内容摘要_SHA256": "结构回归示例不适用",
+    "事件编号": "REGRESSION-EVENT-001",
+    "图像宽度": 4000,
+    "图像高度": 3000,
+    "数据划分": "不进入训练"
+  },
+  "外部信息": {
+    "文件名解析": [
+      {"字段": "电压等级", "值": "10kV", "来源": "文件名解析", "是否可由图像验证": false},
+      {"字段": "故障原因", "值": "雷击", "来源": "文件名解析", "是否可由图像验证": false},
+      {"字段": "原始缺陷描述", "值": "釉表面灼伤", "来源": "文件名解析", "是否可由图像验证": false},
+      {"字段": "原始严重等级", "值": "严重", "来源": "文件名解析", "是否可由图像验证": false}
+    ],
+    "设备台账信息": [],
+    "工单信息": []
+  },
+  "标注流程状态": {
+    "当前阶段": "VALIDATE",
+    "阶段状态": {
+      "ROUTE": "已完成",
+      "SUBJECT": "已完成",
+      "DEFECT": "已完成",
+      "VALIDATE": "进行中",
+      "DERIVE": "未开始"
+    },
+    "候选披露轨迹": [
+      {
+        "轨迹编号": "轨迹01",
+        "阶段代码": "ROUTE",
+        "父节点代码": null,
+        "标签包名称": "通用路由候选/业务域",
+        "标签包版本": "2.0",
+        "候选代码": ["GEN", "TRA", "SUB", "DIS", "USE", "CROSS", "UNKNOWN"],
+        "选择代码": ["DIS"],
+        "候选快照摘要": "17881650cf20ba186ab33941bf37399fc0629ed152d85ffabba3e25abd5691da",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹02",
+        "阶段代码": "ROUTE",
+        "父节点代码": "DIS",
+        "标签包名称": "配电设施场景",
+        "标签包版本": "2.0",
+        "候选代码": ["DIS_OHL", "DIS_ROOM", "DIS_BOX", "DIS_CABLE"],
+        "选择代码": ["DIS_OHL"],
+        "候选快照摘要": "ed99a4ed479de1fd82f120d54b588445a70069a379bf6e050cb4c5a7e16e9e7b",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹03",
+        "阶段代码": "SUBJECT",
+        "父节点代码": "DIS_OHL",
+        "标签包名称": "配电架空线路六层知识",
+        "标签包版本": "2.0",
+        "候选代码": ["POLE_TOWER", "LINE_CORRIDOR", "DIS_SW_BOX", "DIS_BREAKER", "DIS_CT", "DIS_FTU", "DTR_3P", "DIS_CABINET", "DIS_ISOLATOR_COMBINED", "DIS_ISOLATOR_SINGLE", "DIS_DROP_FUSE", "DIS_ARRESTER_FIXED", "DIS_ARRESTER_DETACH", "DIS_OVERVOLTAGE_PROTECTOR", "DIS_GAP_ARRESTER", "DIS_HV_METER", "DIS_LINELOSS_METER", "DIS_REACTIVE_COMP", "DIS_FAULT_INDICATOR", "DIS_BIRD_REPELLER"],
+        "选择代码": ["POLE_TOWER"],
+        "候选快照摘要": "4aa42522e7210090a7ce9815c35cb8eb88f5caa12e536d2d5aac4265d3ce4498",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹04",
+        "阶段代码": "SUBJECT",
+        "父节点代码": "POLE_TOWER",
+        "标签包名称": "配电架空线路六层知识",
+        "标签包版本": "2.0",
+        "候选代码": ["TOWER_BODY", "TOWER_TOP", "TOWER_BASE", "TOWER_FLANGE", "TOWER_FASTENER", "TOWER_HOOP", "INSULATOR_GENERIC", "jyz-boli_xuanshi", "jyz-taoci_xuanshi", "jyz-fuhe_bangxing_xuanshi", "jyz-taoci_bangxing_xuanshi", "jyz-taoci_hengdan", "jyz-taoci_zhushi", "jyz-fuhe_zhenshi", "jyz-fuhe_fanglei_zhenshi", "jyz-taoci_zhenshi", "jyz-taoci_dieshi", "jyz-taoci_laxian", "jyz-taoci_fanglei_zhushi", "jinju-xianjia-naizhang-daozhuangxing", "jinju-xianjia-naizhang-xiexing", "jinju-xianjia-naizhang-yeyaxing", "jinju-xianjia-xuanchui", "jinju-xianjia-bingxian", "jinju-yandianhuan", "jinju-tonglvguoduxianjia-bizi", "hengdan-jiaotiedanhengdan", "hengdan-jiaotieshuanghengdan", "hengdan-daixiechenghengdan", "ganghengdan", "dingmao", "daoxian-jueyuan", "daoxian-luo", "daoxian-bileixian", "laxian", "ganhaopai", "jingshipai", "xiangxupai", "taiqumingpai"],
+        "选择代码": ["jyz-taoci_zhushi"],
+        "候选快照摘要": "3481fb6cd3bc9b7846eb5f961643303931f42a0b701c88c485d75e6ebfc9f694",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹05",
+        "阶段代码": "SUBJECT",
+        "父节点代码": "jyz-taoci_zhushi",
+        "标签包名称": "配电架空线路六层知识",
+        "标签包版本": "2.0",
+        "候选代码": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
+        "选择代码": ["PORCELAIN_INSULATOR_BODY"],
+        "候选快照摘要": "feb6df590d757c738910049def2dfb82df2b3ed1f08af55df75f14e1c5ca4498",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹06",
+        "阶段代码": "SUBJECT",
+        "父节点代码": "PORCELAIN_INSULATOR_BODY",
+        "标签包名称": "配电架空线路六层知识",
+        "标签包版本": "2.0",
+        "候选代码": ["INSULATOR_GLAZE_SURFACE"],
+        "选择代码": ["INSULATOR_GLAZE_SURFACE"],
+        "候选快照摘要": "f5c26e7910a52d91ed8fb6761df4952a1507b0dd1b8a7e98566ca8bf59f6fbb7",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹07",
+        "阶段代码": "DEFECT",
+        "父节点代码": "POLE_TOWER",
+        "标签包名称": "配电架空线路六层知识/载体缺陷候选",
+        "标签包版本": "2.0",
+        "候选代码": ["TOWER_CRACK", "TOWER_TILT", "TOWER_BODY_DAMAGE", "TOWER_FOREIGN_OBJECT", "TOWER_BIRD_NEST", "TOWER_VINE", "TOWER_TOP_DAMAGE", "TOWER_BASE_SETTLEMENT", "TOWER_BASE_DEBRIS", "TOWER_BASE_SEDIMENT", "POLE_NUMBER_PLATE_MISSING", "GUY_WIRE_STRAND_LOOSE", "GUY_WIRE_CORROSION", "HOOP_CORROSION", "FLANGE_BOLT_CORROSION", "OTHER_REVIEW", "CHECK_DEFECT_FOUND", "NO_VISIBLE_ANOMALY", "CHECK_NOT_VISIBLE", "CHECK_UNDETERMINED", "CHECK_HUMAN_REVIEW", "CHECK_NOT_APPLICABLE", "CHECK_UNPROCESSED"],
+        "选择代码": ["CHECK_NOT_APPLICABLE"],
+        "候选快照摘要": "8ec7ceeae869f75b5833f9dacf0825fdf4b6bcab9e1de436a6f730777bd76089",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹08",
+        "阶段代码": "DEFECT",
+        "父节点代码": "jyz-taoci_zhushi",
+        "标签包名称": "配电架空线路六层知识/载体缺陷候选",
+        "标签包版本": "2.0",
+        "候选代码": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT", "OTHER_REVIEW", "CHECK_DEFECT_FOUND", "NO_VISIBLE_ANOMALY", "CHECK_NOT_VISIBLE", "CHECK_UNDETERMINED", "CHECK_HUMAN_REVIEW", "CHECK_NOT_APPLICABLE", "CHECK_UNPROCESSED"],
+        "选择代码": ["CHECK_NOT_APPLICABLE"],
+        "候选快照摘要": "fcab35027eb0dd9337d9cd0221869ec6b9ab69ed8eb312d5d89ff1699064a501",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹09",
+        "阶段代码": "DEFECT",
+        "父节点代码": "PORCELAIN_INSULATOR_BODY",
+        "标签包名称": "配电架空线路六层知识/载体缺陷候选",
+        "标签包版本": "2.0",
+        "候选代码": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "OTHER_REVIEW", "CHECK_DEFECT_FOUND", "NO_VISIBLE_ANOMALY", "CHECK_NOT_VISIBLE", "CHECK_UNDETERMINED", "CHECK_HUMAN_REVIEW", "CHECK_NOT_APPLICABLE", "CHECK_UNPROCESSED"],
+        "选择代码": ["CHECK_NOT_APPLICABLE"],
+        "候选快照摘要": "a74b9200821dbeaa529a22fb7a5c5e5b0e272d5a7fb0e7d2f4261ff4e5ee3d28",
+        "选择结果状态": "已完成"
+      },
+      {
+        "轨迹编号": "轨迹10",
+        "阶段代码": "DEFECT",
+        "父节点代码": "INSULATOR_GLAZE_SURFACE",
+        "标签包名称": "配电架空线路六层知识/载体缺陷候选",
+        "标签包版本": "2.0",
+        "候选代码": ["INSULATOR_GLAZE_BURN_MARK", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "OTHER_REVIEW", "CHECK_DEFECT_FOUND", "NO_VISIBLE_ANOMALY", "CHECK_NOT_VISIBLE", "CHECK_UNDETERMINED", "CHECK_HUMAN_REVIEW", "CHECK_NOT_APPLICABLE", "CHECK_UNPROCESSED"],
+        "选择代码": ["CHECK_DEFECT_FOUND", "INSULATOR_GLAZE_BURN_MARK"],
+        "候选快照摘要": "d2f00b8b869cf57c1feb0e3fdc1aee1bedc964935ae9241ff5e5827eb269f1eb",
+        "选择结果状态": "已完成"
+      }
+    ],
+    "待检查载体队列": ["设施01", "部件01", "子部件01", "子部件02"],
+    "退回记录": []
+  },
+  "图像路由": {
+    "业务域": {"代码": "DIS", "中文名称": "配电", "来源": "结构回归预设；真实图像必须视觉复核"},
+    "设施场景": {"代码": "DIS_OHL", "中文名称": "配电架空线路", "来源": "结构回归预设；真实图像必须视觉复核"},
+    "拍摄任务": "缺陷巡视",
+    "拍摄范围": {"代码": "DEFECT_CLOSEUP", "中文名称": "缺陷特写"},
+    "图像模态": {"代码": "VISIBLE", "中文名称": "可见光图像"},
+    "图像清晰程度": "清晰",
+    "遮挡程度": "无遮挡",
+    "可继续标注状态": "可以",
+    "激活标签包": ["配电架空线路六层知识"],
+    "路由视觉证据": ["结构回归预设，批量生产时必须替换为真实图像证据"],
+    "路由不确定项": []
+  },
+  "主要对象主题": {
+    "对象编号": "部件01",
+    "对象层级": "部件",
+    "标签代码": "jyz-taoci_zhushi",
+    "中文名称": "陶瓷柱式绝缘子",
+    "候选树路径": "DIS/DIS_OHL/POLE_TOWER/jyz-taoci_zhushi"
+  },
+  "标注对象树": [
+    {
+      "对象类型": "设施",
+      "对象编号": "设施01",
+      "标签": {"代码": "POLE_TOWER", "中文名称": "杆塔", "标签性质": "实标签", "台账版本": "2.0"},
+      "候选树路径": "DIS/DIS_OHL/POLE_TOWER",
+      "候选披露轨迹编号": "轨迹03",
+      "对象角色": "背景目标",
+      "可见程度": "局部可见",
+      "边界框_归一化坐标": [0, 0, 1000, 1000],
+      "属性": [],
+      "缺陷检查": {"状态": "CHECK_NOT_APPLICABLE", "候选披露轨迹编号": "轨迹07", "检查说明": "本示例只检查绝缘子釉表面"},
+      "设备实例": [],
+      "部件实例": [
+        {
+          "对象类型": "部件",
+          "对象编号": "部件01",
+          "标签": {"代码": "jyz-taoci_zhushi", "中文名称": "陶瓷柱式绝缘子", "台账版本": "2.0"},
+          "候选树路径": "DIS/DIS_OHL/POLE_TOWER/jyz-taoci_zhushi",
+          "候选披露轨迹编号": "轨迹04",
+          "部件角色": "主要目标",
+          "可见程度": "完整可见",
+          "边界框_归一化坐标": [100, 100, 900, 900],
+          "属性": [],
+          "缺陷检查": {"状态": "CHECK_NOT_APPLICABLE", "候选披露轨迹编号": "轨迹08", "检查说明": "缺陷定位到釉表面子部件"},
+          "设备实例": [],
+          "部件实例": [
+            {
+              "对象类型": "子部件",
+              "对象编号": "子部件01",
+              "标签": {"代码": "PORCELAIN_INSULATOR_BODY", "中文名称": "瓷绝缘子本体", "台账版本": "2.0"},
+              "候选树路径": "DIS/DIS_OHL/POLE_TOWER/jyz-taoci_zhushi/PORCELAIN_INSULATOR_BODY",
+              "候选披露轨迹编号": "轨迹05",
+              "部件角色": "可见结构",
+              "可见程度": "完整可见",
+              "边界框_归一化坐标": [120, 120, 880, 880],
+              "属性": [],
+              "缺陷检查": {"状态": "CHECK_NOT_APPLICABLE", "候选披露轨迹编号": "轨迹09", "检查说明": "缺陷进一步定位到釉表面"},
+              "设备实例": [],
+              "部件实例": [
+                {
+                  "对象类型": "子部件",
+                  "对象编号": "子部件02",
+                  "标签": {"代码": "INSULATOR_GLAZE_SURFACE", "中文名称": "绝缘子釉表面", "台账版本": "2.0"},
+                  "候选树路径": "DIS/DIS_OHL/POLE_TOWER/jyz-taoci_zhushi/PORCELAIN_INSULATOR_BODY/INSULATOR_GLAZE_SURFACE",
+                  "候选披露轨迹编号": "轨迹06",
+                  "部件角色": "缺陷载体",
+                  "可见程度": "清晰可见",
+                  "边界框_归一化坐标": [180, 180, 820, 820],
+                  "属性": [],
+                  "缺陷检查": {"状态": "CHECK_DEFECT_FOUND", "候选披露轨迹编号": "轨迹10", "检查说明": "结构回归预设；真实样本必须由图像确认"},
+                  "设备实例": [],
+                  "部件实例": [],
+                  "状态量标注": [],
+                  "缺陷实例": [
+                    {
+                      "对象类型": "缺陷",
+                      "缺陷编号": "缺陷01",
+                      "缺陷类别": {"代码": "INSULATOR_GLAZE_BURN_MARK", "中文名称": "绝缘子釉表面灼伤痕迹", "台账版本": "2.0"},
+                      "候选树路径": "绝缘子釉表面/INSULATOR_GLAZE_BURN_MARK",
+                      "候选披露轨迹编号": "轨迹10",
+                      "载体对象编号": "子部件02",
+                      "判定状态": "缺陷",
+                      "视觉明显程度": "明显",
+                      "缺陷范围": "局部",
+                      "业务严重等级": "待人工复核",
+                      "边界框_归一化坐标": [300, 300, 600, 600],
+                      "无法画框原因": null,
+                      "直接可见证据编号": ["证据01"],
+                      "不可确认内容": ["结构回归示例不确认雷击原因和严重等级"],
+                      "视觉识别置信度": 0.95,
+                      "需要专家复核": false
+                    }
+                  ]
+                }
+              ],
+              "状态量标注": [],
+              "缺陷实例": []
+            }
+          ],
+          "状态量标注": [],
+          "缺陷实例": []
+        }
+      ],
+      "状态量标注": [],
+      "缺陷实例": []
+    }
+  ],
+  "环境标注": [],
+  "关联关系": [],
+  "视觉证据": [
+    {"证据编号": "证据01", "对应对象编号": "子部件02", "可见事实": "结构回归预设：瓷绝缘子釉表面存在局部灼伤、熔蚀或异常变色", "证据来源": "结构回归预设，生产时必须替换为图像视觉", "可靠程度": "高"}
+  ],
+  "不确定信息": [
+    {"字段名称": "故障原因", "原始值": "雷击", "来源": "文件名解析", "不确定原因": "单幅图像不能独立确认雷击原因"},
+    {"字段名称": "业务严重等级", "原始值": "严重", "来源": "文件名解析", "不确定原因": "严重度不是纯视觉结论"}
+  ],
+  "知识层任务状态": [],
+  "多模态描述": {"生成状态": "未生成"},
+  "组合图像检索标注": {"生成状态": "未生成"},
+  "自动校验结果": {
+    "规则校验": {"执行状态": "待运行validate_annotation.py"},
+    "大模型语义复核": {"执行状态": "结构回归示例不执行"},
+    "批次数据校验": {"执行状态": "结构回归示例不适用"},
+    "最终门禁": {"结论": "结构回归示例不进入训练", "允许生成派生输出": false, "允许进入训练": false, "允许进入检索数据集": false}
+  },
+  "人工审核": {"标注状态": "结构回归示例", "审核人员": null, "审核意见": "不得当作真实图像训练样本"}
+}

@@ -299,10 +299,29 @@ def defect_candidates(
     task: str | None,
     index: dict[str, dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
-    """按精确映射、对象载体映射和跨字段规则生成缺陷候选。"""
+    """按精确映射、载体族、对象映射和跨字段规则生成缺陷候选。
+
+    载体族必须先于父对象回退。例如绝缘子是杆塔的部件，但它不能因为某个新型号
+    暂时没有精确映射，就继承杆塔裂纹、倾斜和抱箍锈蚀。候选树可通过
+    ``载体代码前缀缺陷映射``把稳定代码族映射到受限缺陷组；只有精确映射和族映射
+    都不存在时，才考虑对象自身或显式传入的父对象映射。
+    """
 
     source = "部件缺陷精确映射"
     candidate_codes = list(ledger["部件缺陷精确映射"].get(carrier_code, []))
+
+    if not candidate_codes:
+        # 代码前缀规则用于同一专业对象族的安全回退。它不会把全量通用缺陷开放给
+        # 模型，只会加载台账中显式声明的一个或多个载体缺陷组。
+        matched_groups: list[str] = []
+        for mapping in ledger.get("载体代码前缀缺陷映射", []):
+            prefix = mapping.get("代码前缀")
+            if isinstance(prefix, str) and carrier_code.startswith(prefix):
+                matched_groups.extend(mapping.get("载体缺陷组", []))
+        if matched_groups:
+            source = "载体代码前缀缺陷映射"
+            for group in matched_groups:
+                candidate_codes.extend(ledger["载体缺陷候选"].get(group, []))
 
     if not candidate_codes:
         source = "对象缺陷载体映射"

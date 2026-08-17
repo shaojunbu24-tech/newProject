@@ -1,0 +1,4 @@
+interface:
+  display_name: "电力图像标注 1.2"
+  short_description: "一次加载受控标签包并生成完整嵌套电力设备图像标注JSON"
+  default_prompt: "使用 $power-image-annotation-v1-2 按1.2规则为这批电力设备图像生成受控嵌套JSON标注。"

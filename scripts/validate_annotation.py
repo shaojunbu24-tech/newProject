@@ -62,6 +62,9 @@ class Validator:
         self.object_ids: set[str] = set()
         self.defect_ids: set[str] = set()
         self.traces_by_id: dict[str, dict[str, Any]] = {}
+        # OTHER_REVIEW是合法的候选外承载代码，但不是训练标签。单独记录它，避免
+        # “JSON结构通过”在下游被误解为“允许进入训练”。
+        self.contains_other_review = False
 
     def add_issue(
         self,
@@ -225,6 +228,17 @@ class Validator:
         ):
             label = node.get("标签", {})
             code = label.get("代码")
+            if code == "OTHER_REVIEW":
+                self.contains_other_review = True
+                self.add_issue(
+                    "标签台账校验",
+                    "警告",
+                    f"{path}/标签/代码",
+                    "对象使用候选外待扩展代码，当前标注不得进入训练",
+                    actual=code,
+                    suggestion="完成人工标签扩展审核后使用新版本正式代码重新标注",
+                    return_stage="SUBJECT",
+                )
             definition = self.index.get(code)
             if not definition:
                 self.add_issue(
@@ -261,6 +275,17 @@ class Validator:
                 defect_path = f"{path}/缺陷实例/{defect_position}"
                 defect_label = defect.get("缺陷类别", {})
                 defect_code = defect_label.get("代码")
+                if defect_code == "OTHER_REVIEW":
+                    self.contains_other_review = True
+                    self.add_issue(
+                        "标签台账校验",
+                        "警告",
+                        f"{defect_path}/缺陷类别/代码",
+                        "缺陷使用候选外待扩展代码，当前标注不得进入训练",
+                        actual=defect_code,
+                        suggestion="保留可见证据并发起缺陷标签扩展审核",
+                        return_stage="DEFECT",
+                    )
                 definition = self.index.get(defect_code)
                 if defect_code not in self.defect_codes or not definition:
                     self.add_issue(
@@ -758,6 +783,9 @@ class Validator:
                 "校验项": check_results,
                 "问题列表": self.issues,
                 "允许进入大模型语义复核": blocking == 0,
+                "包含候选外标签": self.contains_other_review,
+                "允许进入训练前置条件": blocking == 0
+                and not self.contains_other_review,
             }
         }
 

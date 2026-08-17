@@ -1,7 +1,7 @@
 {
   "标签台账名称": "电力设备多模态标签候选树",
-  "标签台账版本": "2.0",
-  "状态": "2.0覆盖增强版-待领域专家终审",
+  "标签台账版本": "1.2",
+  "状态": "1.2回溯稳定版-待领域专家终审",
   "标签使用规则": {
     "正式标签来源": "本台账或后续已发布版本",
     "候选外处理代码": "OTHER_REVIEW",
@@ -10,12 +10,12 @@
     "虚标签是否允许人工直接标注": false,
     "文件名标签是否可直接作为视觉标签": false,
     "正式候选格式": "必须同时包含代码和中文名称；纯字符串数组只允许用于流程状态或尚未发布的规划词表",
-    "领域加载规则": "先根据业务域和设施场景路由，再加载对应设备主题子树；阶段二结束后才允许按实际载体加载缺陷候选",
-    "渐进披露规则": "每轮正式选择必须来自本轮候选快照；未向模型披露的标签即使存在于总台账中也不得直接选择",
+    "领域加载规则": "允许一次加载完整1.2标签树；正式标签仍必须同时满足业务域、设施场景、对象包含关系和载体缺陷兼容关系",
+    "渐进披露规则": "1.2不强制记录逐层候选快照；实现方可以分阶段提示，也可以在一次模型调用中提供与当前任务有关的完整标签包",
     "无异常处理规则": "NO_VISIBLE_ANOMALY是检查结论控制代码，不作为缺陷实例写入训练标签；应通过载体的缺陷检查状态表达"
   },
   "渐进披露配置": {
-    "_说明": "本节定义四阶段工作流的阶段门禁和候选披露边界。它不改变标注对象树，只约束模型在每个阶段能够看到和选择的内容。",
+    "_说明": "本节保留四阶段语义，供兼容实现参考。1.2 Skill不强制多层模型调用，也不要求逐轮保存候选披露轨迹。",
     "阶段顺序": ["ROUTE", "SUBJECT", "DEFECT", "VALIDATE", "DERIVE"],
     "阶段定义": [
       {
@@ -63,8 +63,7 @@
     "配电架空线路": "候选可用于当前项目试标；杆塔20类、设备20类、元件28类、环境18类、拍摄位置8类已代码化，缺陷按PDF可辨识批次和当前数据补齐，仍需官方100类电子台账终审",
     "户外变电站": "候选可覆盖当前64张项目图片中的主变、站用变、断路器、避雷器表计和并联电容器任务，尚不是全站全设备缺陷标准",
     "配电站房、箱式变电站、配电电缆": "路由级规划词表，未达到训练标签发布条件",
-    "输电架空线路": "已开放绝缘子专项正式标签；输电杆塔其他部件、导地线、金具和通道缺陷仍为路由级规划，不得据此宣称输电全专业已覆盖",
-    "发电、用电": "路由级规划词表，需对应专业标签包后才能用于正式训练"
+    "输电、发电、用电": "路由级规划词表，需对应专业标签包后才能用于正式训练"
   },
   "通用路由候选": {
     "业务域": [
@@ -290,14 +289,8 @@
       "业务域": {"代码": "TRA", "中文名称": "输电"},
       "设施场景": [
         {
-          "代码": "TRA_OHL", "中文名称": "输电架空线路", "标签包": "输电架空线路绝缘子专项", "成熟度": "绝缘子专项可用-其余对象路由级规划",
-          "设施候选": [
-            {"代码": "TRA_TOWER", "中文名称": "输电杆塔"},
-            {"代码": "TRA_LINE_CORRIDOR", "中文名称": "输电线路通道"}
-          ],
-          "设备候选": [],
-          "规划设备名称": ["导线", "地线", "金具串", "间隔棒", "防振锤", "均压环", "屏蔽环", "防鸟装置", "接地装置", "在线监测装置"],
-          "专项能力说明": "本标签包只允许正式标注输电杆塔或线路通道下的绝缘子串、绝缘子类型、绝缘子本体与表面可见异常；其他输电对象仍按规划词表处理。"
+          "代码": "TRA_OHL", "中文名称": "输电架空线路", "标签包": "输电架空线路", "成熟度": "路由级规划",
+          "规划设备名称": ["输电杆塔", "导线", "地线", "绝缘子串", "金具串", "间隔棒", "防振锤", "均压环", "屏蔽环", "防鸟装置", "接地装置", "在线监测装置"]
         },
         {
           "代码": "TRA_CABLE", "中文名称": "输电电缆线路", "标签包": "输电电缆", "成熟度": "路由级规划",
@@ -330,28 +323,11 @@
       {"代码": "TOWER_FLANGE", "中文名称": "杆塔法兰"},
       {"代码": "TOWER_FASTENER", "中文名称": "杆塔螺栓或紧固件"},
       {"代码": "TOWER_HOOP", "中文名称": "抱箍"}
-    ],
-    "绝缘子泛化根对象": [
-      {"代码": "INSULATOR_GENERIC", "中文名称": "绝缘子（类型不可判定）", "适用说明": "图像足以确认绝缘子、但不足以稳定确定材质和结构类型时使用"}
-    ],
-    "输电绝缘子根对象": [
-      {"代码": "TRA_INSULATOR_STRING", "中文名称": "输电绝缘子串"},
-      {"代码": "INSULATOR_GENERIC", "中文名称": "绝缘子（类型不可判定）", "适用说明": "图像足以确认绝缘子、但不足以稳定确定材质和结构类型时使用"}
-    ],
-    "绝缘子子部件定义": [
-      {"代码": "INSULATOR_BODY", "中文名称": "绝缘子本体"},
-      {"代码": "PORCELAIN_INSULATOR_BODY", "中文名称": "瓷绝缘子本体"},
-      {"代码": "GLASS_INSULATOR_BODY", "中文名称": "玻璃绝缘子本体"},
-      {"代码": "COMPOSITE_INSULATOR_BODY", "中文名称": "复合绝缘子本体"},
-      {"代码": "INSULATOR_GLAZE_SURFACE", "中文名称": "绝缘子釉表面"},
-      {"代码": "INSULATOR_METAL_END", "中文名称": "绝缘子端部金具"}
     ]
   },
   "设施部件映射": {
     "_说明": "键为设施代码，值为阶段二应加载的设施部件组。场景内线路元件和标志牌候选由选择器同时按候选树路径加入，不在此处复制。",
-    "POLE_TOWER": ["杆塔结构通用", "绝缘子泛化根对象"],
-    "TRA_TOWER": ["杆塔结构通用", "输电绝缘子根对象"],
-    "TRA_LINE_CORRIDOR": ["输电绝缘子根对象"]
+    "POLE_TOWER": ["杆塔结构通用"]
   },
   "设备部件候选": {
     "变压器通用": [
@@ -545,29 +521,9 @@
     "POLE_SWITCH_CONTROL_BOX": ["POLE_SWITCH_BOX_DOOR"],
     "ARR_MONITOR_COUNTER": ["METER_CASE", "METER_WINDOW", "METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "METER_DIGITAL_DISPLAY", "METER_CABLE", "METER_BRACKET"],
     "METERING_DISPLAY": ["METER_CASE", "METER_WINDOW", "METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "METER_DIGITAL_DISPLAY"],
-    "TRA_INSULATOR_STRING": ["INSULATOR_GENERIC", "jyz-boli_xuanshi", "jyz-taoci_xuanshi", "jyz-fuhe_bangxing_xuanshi", "jyz-taoci_bangxing_xuanshi", "jyz-taoci_hengdan", "jyz-taoci_zhushi", "jyz-fuhe_zhenshi", "jyz-fuhe_fanglei_zhenshi", "jyz-taoci_zhenshi", "jyz-taoci_dieshi", "jyz-taoci_laxian", "jyz-taoci_fanglei_zhushi"],
-    "INSULATOR_GENERIC": ["INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-boli_xuanshi": ["GLASS_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_xuanshi": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-fuhe_bangxing_xuanshi": ["COMPOSITE_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_bangxing_xuanshi": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_hengdan": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_zhushi": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-fuhe_zhenshi": ["COMPOSITE_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-fuhe_fanglei_zhenshi": ["COMPOSITE_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_zhenshi": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_dieshi": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_laxian": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "jyz-taoci_fanglei_zhushi": ["PORCELAIN_INSULATOR_BODY", "INSULATOR_SHED", "INSULATOR_METAL_END"],
-    "PORCELAIN_INSULATOR_BODY": ["INSULATOR_GLAZE_SURFACE"]
+    "jyz-taoci_zhushi": ["INSULATOR_SHED"],
+    "jyz-taoci_zhenshi": ["INSULATOR_SHED"]
   },
-  "载体代码前缀缺陷映射": [
-    {
-      "代码前缀": "jyz-",
-      "载体缺陷组": ["绝缘子"],
-      "说明": "任何已定义的绝缘子类型在缺少精确映射时都回退到绝缘子候选，禁止继承父杆塔的结构性缺陷。"
-    }
-  ],
   "对象缺陷载体映射": {
     "_说明": "阶段三先用对象代码定位一个或多个载体缺陷组，再优先使用部件缺陷精确映射。此映射只决定候选来源，不表示图中一定存在缺陷。",
     "POLE_TOWER": ["杆塔"],
@@ -656,15 +612,6 @@
     {"代码": "INSULATOR_DAMAGE", "中文名称": "绝缘子破损"},
     {"代码": "INSULATOR_POLLUTION", "中文名称": "绝缘子污染"},
     {"代码": "INSULATOR_DISCHARGE_MARK", "中文名称": "绝缘子放电样痕迹"},
-    {"代码": "INSULATOR_GLAZE_BURN_MARK", "中文名称": "绝缘子釉表面灼伤痕迹", "适用载体": "瓷绝缘子釉表面", "视觉边界": "可见釉面局部变色、烧蚀、熔蚀或灼伤；不得仅凭文件名确认"},
-    {"代码": "INSULATOR_ARC_BURN_MARK", "中文名称": "绝缘子电弧烧伤痕迹", "视觉边界": "可见明显高温烧蚀、熔蚀、点蚀或炭化痕迹，但不直接推断雷击原因"},
-    {"代码": "INSULATOR_FLASHOVER_TRACE", "中文名称": "绝缘子闪络路径痕迹", "视觉边界": "可见沿绝缘表面或爬电路径分布的连续、跨伞裙或桥接式放电痕迹"},
-    {"代码": "INSULATOR_TRACKING_EROSION", "中文名称": "绝缘子表面电痕或电蚀", "视觉边界": "可见沿面电痕、沟槽状电蚀或材料侵蚀；原因与等级需另行复核"},
-    {"代码": "INSULATOR_GLASS_SELF_SHATTER", "中文名称": "玻璃绝缘子自爆或玻璃体缺损", "视觉边界": "玻璃件明显碎裂、缺失或仅残留金具；自爆原因仍需结合外部信息"},
-    {"代码": "INSULATOR_COMPOSITE_SHED_DAMAGE", "中文名称": "复合绝缘子伞裙破损"},
-    {"代码": "INSULATOR_CORE_EXPOSED", "中文名称": "复合绝缘子芯棒外露"},
-    {"代码": "INSULATOR_END_FITTING_CORROSION", "中文名称": "绝缘子端部金具锈蚀"},
-    {"代码": "INSULATOR_END_FITTING_LOOSE", "中文名称": "绝缘子端部金具松动或脱离"},
     {"代码": "INSULATOR_FIXED_LOOSE_TILT", "中文名称": "绝缘子固定松动或倾斜"},
     {"代码": "INSULATOR_CONDUCTOR_UNBOUND", "中文名称": "瓷绝缘子导线未绑扎"},
     {"代码": "INSULATOR_CLIP_MISSING_LOOSE", "中文名称": "复合绝缘子卡扣缺失或松动"},
@@ -728,8 +675,7 @@
     "变压器": ["OIL_STAIN", "OIL_LEAKAGE", "TR_TANK_CORROSION", "TR_TANK_DEFORMATION", "TR_BUSHING_DAMAGE", "TR_BUSHING_POLLUTION_DISCHARGE", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "FOREIGN_OBJECT", "BIRD_NEST_FOREIGN_OBJECT", "TR_GROUND_LEAD_CORROSION_DETACHED", "TR_CONSERVATOR_OIL_STAIN", "TR_CONSERVATOR_OIL_LEAKAGE", "TR_COOLER_OIL_STAIN", "TR_COOLER_OIL_LEAKAGE", "TR_RADIATOR_JOINT_OIL_STAIN", "TR_RADIATOR_JOINT_OIL_LEAKAGE"],
     "避雷器": ["ARRESTER_BODY_DAMAGE", "ARRESTER_SHED_DAMAGE", "ARRESTER_MISSING", "ARRESTER_POLLUTION_DISCHARGE", "ARRESTER_BODY_DETACHED", "ARRESTER_HV_LEAD_BROKEN_DETACHED", "ARRESTER_GROUND_LEAD_BROKEN_DETACHED", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "ARRESTER_MONITOR_VISIBLE_ABNORMAL", "METER_UNREADABLE"],
     "电容器": ["CAP_BULGING", "CAP_OIL_LEAKAGE", "CAP_SHELL_CORROSION", "CAP_SHELL_DAMAGE", "CAP_BUSHING_POLLUTION", "CAP_BUSHING_DAMAGE", "CAP_TERMINAL_LOOSE_DETACHED", "CAP_FUSE_VISIBLE_ABNORMAL"],
-    "绝缘子": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_GLASS_SELF_SHATTER", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_CORE_EXPOSED", "INSULATOR_END_FITTING_CORROSION", "INSULATOR_END_FITTING_LOOSE", "INSULATOR_FIXED_LOOSE_TILT", "INSULATOR_CONDUCTOR_UNBOUND", "INSULATOR_CLIP_MISSING_LOOSE"],
-    "绝缘子与线路元件": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT", "INSULATOR_CONDUCTOR_UNBOUND", "INSULATOR_CLIP_MISSING_LOOSE", "SURFACE_DISCHARGE_MARK", "INSULATION_DAMAGE", "CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT", "CONDUCTOR_BINDING_NONSTANDARD", "BARE_WIRE_BIND_INSULATED_CONDUCTOR", "CLAMP_LOOSE_DETACHED", "CLAMP_CORROSION", "TENSION_CLAMP_COVER_MISSING_DAMAGE", "PIN_MISSING", "NUT_LOOSE", "NUT_MISSING", "BOLT_MISSING", "SMALL_HARDWARE_CORROSION", "CONNECTION_HARDWARE_CORROSION", "CROSSARM_DEFORMATION", "CROSSARM_CORROSION"],
+    "绝缘子与线路元件": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_FIXED_LOOSE_TILT", "INSULATOR_CONDUCTOR_UNBOUND", "INSULATOR_CLIP_MISSING_LOOSE", "SURFACE_DISCHARGE_MARK", "INSULATION_DAMAGE", "CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT", "CONDUCTOR_BINDING_NONSTANDARD", "BARE_WIRE_BIND_INSULATED_CONDUCTOR", "CLAMP_LOOSE_DETACHED", "CLAMP_CORROSION", "TENSION_CLAMP_COVER_MISSING_DAMAGE", "PIN_MISSING", "NUT_LOOSE", "NUT_MISSING", "BOLT_MISSING", "SMALL_HARDWARE_CORROSION", "CONNECTION_HARDWARE_CORROSION", "CROSSARM_DEFORMATION", "CROSSARM_CORROSION"],
     "杆塔": ["TOWER_CRACK", "TOWER_TILT", "TOWER_BODY_DAMAGE", "TOWER_FOREIGN_OBJECT", "TOWER_BIRD_NEST", "TOWER_VINE", "TOWER_TOP_DAMAGE", "TOWER_BASE_SETTLEMENT", "TOWER_BASE_DEBRIS", "TOWER_BASE_SEDIMENT", "POLE_NUMBER_PLATE_MISSING", "GUY_WIRE_STRAND_LOOSE", "GUY_WIRE_CORROSION", "HOOP_CORROSION", "FLANGE_BOLT_CORROSION"],
     "线路通道": ["CORRIDOR_DEBRIS", "TREE_BAMBOO_OBSTRUCTION", "OTHER_REVIEW"],
     "断路器": ["BREAKER_BOX_DOOR_OPEN_ABNORMAL", "OPERATING_MECH_CORROSION", "CORROSION", "LOOSE", "DAMAGE", "POLLUTION_DUST"],
@@ -776,27 +722,8 @@
     "daoxian-jueyuan": ["SURFACE_DISCHARGE_MARK", "INSULATION_DAMAGE", "CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT", "CONDUCTOR_BINDING_NONSTANDARD", "BARE_WIRE_BIND_INSULATED_CONDUCTOR"],
     "daoxian-luo": ["CONDUCTOR_BROKEN_STRAND", "CONDUCTOR_BROKEN_FALLEN", "CONDUCTOR_FOREIGN_OBJECT"],
     "jinju-xianjia-bingxian": ["CLAMP_LOOSE_DETACHED", "CLAMP_CORROSION", "BOLT_MISSING", "NUT_LOOSE", "NUT_MISSING"],
-    "TRA_INSULATOR_STRING": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_FIXED_LOOSE_TILT"],
-    "INSULATOR_GENERIC": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-boli_xuanshi": ["INSULATOR_DAMAGE", "INSULATOR_GLASS_SELF_SHATTER", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-taoci_xuanshi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-fuhe_bangxing_xuanshi": ["INSULATOR_DAMAGE", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_CORE_EXPOSED", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_CLIP_MISSING_LOOSE"],
-    "jyz-taoci_bangxing_xuanshi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-taoci_hengdan": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-taoci_zhushi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-fuhe_zhenshi": ["INSULATOR_DAMAGE", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_CORE_EXPOSED", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_CLIP_MISSING_LOOSE"],
-    "jyz-fuhe_fanglei_zhenshi": ["INSULATOR_DAMAGE", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_CORE_EXPOSED", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_CLIP_MISSING_LOOSE"],
-    "jyz-taoci_zhenshi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_CONDUCTOR_UNBOUND"],
-    "jyz-taoci_dieshi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_CONDUCTOR_UNBOUND"],
-    "jyz-taoci_laxian": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "jyz-taoci_fanglei_zhushi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_FIXED_LOOSE_TILT"],
-    "INSULATOR_BODY": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION"],
-    "PORCELAIN_INSULATOR_BODY": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION"],
-    "GLASS_INSULATOR_BODY": ["INSULATOR_DAMAGE", "INSULATOR_GLASS_SELF_SHATTER", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE"],
-    "COMPOSITE_INSULATOR_BODY": ["INSULATOR_DAMAGE", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_CORE_EXPOSED", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION"],
-    "INSULATOR_GLAZE_SURFACE": ["INSULATOR_GLAZE_BURN_MARK", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION"],
-    "INSULATOR_SHED": ["INSULATOR_DAMAGE", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION"],
-    "INSULATOR_METAL_END": ["INSULATOR_END_FITTING_CORROSION", "INSULATOR_END_FITTING_LOOSE"],
+    "jyz-taoci_zhushi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_FIXED_LOOSE_TILT"],
+    "jyz-taoci_zhenshi": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_CONDUCTOR_UNBOUND"],
     "hengdan-jiaotiedanhengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
     "hengdan-jiaotieshuanghengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
     "hengdan-daixiechenghengdan": ["CROSSARM_DEFORMATION", "CROSSARM_CORROSION", "LOOSE", "MISSING"],
@@ -874,24 +801,6 @@
       "条件": {"外部信息来源": ["文件名解析"], "信息类型": ["故障原因", "严重等级"]},
       "要求": "必须保留外部来源；图像不能验证时写入不确定信息或人工复核，不得改写为确定的视觉事实",
       "问题级别": "阻断"
-    },
-    {
-      "规则编号": "EVIDENCE-INSULATOR-001",
-      "规则名称": "绝缘子可见现象与雷击原因分离",
-      "执行层": "大模型语义复核",
-      "生效阶段": "VALIDATE",
-      "条件": {"缺陷代码": ["INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION"]},
-      "要求": "视觉标签只描述图中可见的放电、灼伤、闪络路径或电蚀现象；文件名中的雷击只能记录为外部故障原因，除非另有检测、工单或专家结论，不得直接写成视觉缺陷。",
-      "问题级别": "阻断或待人工复核"
-    },
-    {
-      "规则编号": "CARRIER-INSULATOR-001",
-      "规则名称": "绝缘子载体禁止继承父杆塔缺陷",
-      "执行层": "候选选择器",
-      "生效阶段": "DEFECT",
-      "条件": {"载体代码前缀": ["jyz-"], "载体族": ["绝缘子"]},
-      "要求": "绝缘子缺少精确映射时必须回退绝缘子候选组，不得加载杆塔裂纹、杆塔倾斜、抱箍锈蚀等父设施缺陷。",
-      "问题级别": "阻断"
     }
   ],
   "自动校验配置": {
@@ -931,20 +840,7 @@
     "缺陷或任务词": ["异物", "鸟巢状异物", "绝缘防护罩缺失", "绝缘防护罩脱落或欲脱落", "表面焦斑或放电样痕迹", "断路器机构箱门闭合异常", "储油柜渗漏油", "冷却器渗漏油", "散热器连接部位渗漏油", "避雷器本体破损", "避雷器伞裙破损", "避雷器缺失", "箱体鼓肚", "表计读取"],
     "当前64张图片必须存在的设备代码": ["DTR_3P", "PTR_MAIN", "PTR_STATION", "SUB_BREAKER", "DIS_ARRESTER_FIXED", "SUB_ARRESTER", "SUB_CAPACITOR", "SUB_CAP_BANK"],
     "当前64张图片必须存在的部件代码": ["TR_TANK_TOP", "TR_HV_BUSHING", "TR_LV_BUSHING", "INSULATION_COVER", "TR_CONSERVATOR", "TR_OIL_GAUGE", "TR_RADIATOR", "TR_PIPE_JOINT", "TR_COOLER", "BRK_CONTROL_BOX", "BRK_BOX_DOOR", "CAP_SHELL", "CAP_SIDE_PANEL", "ARR_SHED", "ARR_MONITOR_COUNTER", "METER_DIAL", "METER_POINTER", "METER_COUNTER_WINDOW", "daoxian-jueyuan", "jinju-xianjia-bingxian", "jyz-taoci_zhushi"],
-    "当前64张图片必须存在的缺陷代码": ["FOREIGN_OBJECT", "BIRD_NEST_FOREIGN_OBJECT", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "SURFACE_DISCHARGE_MARK", "BREAKER_BOX_DOOR_OPEN_ABNORMAL", "TR_CONSERVATOR_OIL_STAIN", "TR_CONSERVATOR_OIL_LEAKAGE", "TR_COOLER_OIL_STAIN", "TR_COOLER_OIL_LEAKAGE", "TR_RADIATOR_JOINT_OIL_STAIN", "TR_RADIATOR_JOINT_OIL_LEAKAGE", "ARRESTER_BODY_DAMAGE", "ARRESTER_SHED_DAMAGE", "ARRESTER_MISSING", "CAP_BULGING", "NO_VISIBLE_ANOMALY", "METER_UNREADABLE"],
-    "绝缘子专项138张目录词": ["绝缘子", "本体", "釉表面灼伤"],
-    "绝缘子专项138张文件名词": ["10kV", "线路名称", "杆号", "放电", "雷击", "污秽", "灼烧", "一般", "严重"],
-    "绝缘子专项138张必须存在的设施代码": ["POLE_TOWER", "TRA_TOWER", "TRA_LINE_CORRIDOR"],
-    "绝缘子专项138张必须存在的部件代码": ["TRA_INSULATOR_STRING", "INSULATOR_GENERIC", "INSULATOR_BODY", "PORCELAIN_INSULATOR_BODY", "GLASS_INSULATOR_BODY", "COMPOSITE_INSULATOR_BODY", "INSULATOR_GLAZE_SURFACE", "INSULATOR_SHED", "INSULATOR_METAL_END", "jyz-boli_xuanshi", "jyz-taoci_xuanshi", "jyz-fuhe_bangxing_xuanshi", "jyz-taoci_bangxing_xuanshi", "jyz-taoci_hengdan", "jyz-taoci_zhushi", "jyz-fuhe_zhenshi", "jyz-fuhe_fanglei_zhenshi", "jyz-taoci_zhenshi", "jyz-taoci_dieshi", "jyz-taoci_laxian", "jyz-taoci_fanglei_zhushi"],
-    "绝缘子专项138张必须存在的缺陷代码": ["INSULATOR_DAMAGE", "INSULATOR_POLLUTION", "INSULATOR_DISCHARGE_MARK", "INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE", "INSULATOR_TRACKING_EROSION", "INSULATOR_GLASS_SELF_SHATTER", "INSULATOR_COMPOSITE_SHED_DAMAGE", "INSULATOR_CORE_EXPOSED", "INSULATOR_END_FITTING_CORROSION", "INSULATOR_END_FITTING_LOOSE"],
-    "绝缘子专项文件名解析映射": {
-      "放电或放电痕迹": {"外部信息类型": "原始缺陷描述", "视觉候选": ["INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE"], "使用条件": "必须由图像可见形态选择，不能直接复制文件名"},
-      "污秽": {"外部信息类型": "原始缺陷描述", "视觉候选": ["INSULATOR_POLLUTION"], "使用条件": "图像确有表面附着污染时使用"},
-      "釉表面灼伤或灼烧": {"外部信息类型": "原始缺陷描述", "视觉候选": ["INSULATOR_GLAZE_BURN_MARK", "INSULATOR_ARC_BURN_MARK"], "使用条件": "仅瓷绝缘子釉表面且图像可见灼伤、熔蚀或变色时使用"},
-      "闪络": {"外部信息类型": "原始缺陷描述", "视觉候选": ["INSULATOR_FLASHOVER_TRACE", "INSULATOR_DISCHARGE_MARK"], "使用条件": "只有可见连续或桥接式放电路径时确认闪络痕迹"},
-      "雷击": {"外部信息类型": "故障原因", "视觉候选": ["INSULATOR_DISCHARGE_MARK", "INSULATOR_ARC_BURN_MARK", "INSULATOR_FLASHOVER_TRACE"], "禁止直接作为视觉缺陷": true},
-      "一般或严重": {"外部信息类型": "原始严重等级", "视觉候选": [], "禁止直接作为视觉严重等级": true}
-    }
+    "当前64张图片必须存在的缺陷代码": ["FOREIGN_OBJECT", "BIRD_NEST_FOREIGN_OBJECT", "INSULATION_COVER_MISSING", "INSULATION_COVER_DETACHED", "SURFACE_DISCHARGE_MARK", "BREAKER_BOX_DOOR_OPEN_ABNORMAL", "TR_CONSERVATOR_OIL_STAIN", "TR_CONSERVATOR_OIL_LEAKAGE", "TR_COOLER_OIL_STAIN", "TR_COOLER_OIL_LEAKAGE", "TR_RADIATOR_JOINT_OIL_STAIN", "TR_RADIATOR_JOINT_OIL_LEAKAGE", "ARRESTER_BODY_DAMAGE", "ARRESTER_SHED_DAMAGE", "ARRESTER_MISSING", "CAP_BULGING", "NO_VISIBLE_ANOMALY", "METER_UNREADABLE"]
   },
   "缺陷判定状态候选": ["缺陷", "疑似缺陷", "可见异常但类别待复核", "未发现明显异常", "不可判定"],
   "标签性质候选": ["实标签", "虚标签", "辅助标签"],
