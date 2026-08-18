@@ -6,10 +6,11 @@
 
 | 版本 | 仓库位置 | 模型调用方式 | 适用场景 |
 |---|---|---|---|
+| 3.0 | `versions/3.0/` | 可选严格标签包或参考标签包；每图同时导出审计版与纯内容版 | 受控训练、开放词汇标签发现、审计留痕与干净训练JSON并存 |
 | 2.0 | 仓库根目录 | 阶段一至三逐层披露候选，之后执行规则校验与大模型语义复核 | 正式数据集、严格门禁、候选树扩展和输电绝缘子专项 |
 | 1.2 | `versions/1.2/` | 可一次加载相关标签包，一次完成路由、对象树和缺陷初标，再执行确定性校验 | 复现2026-08-13稳定规则、降低调用次数、与2.0做消融或成本对照 |
 
-两个版本分别维护。1.2不会自动继承2.0新增的标签，2.0也不会因回溯版本而降级。
+三个版本分别维护。3.0新增双模式和双输出，但不会把参考模式的新词静默写入严格标签树；1.2和2.0也不会被3.0反向覆盖。
 
 ## 核心能力
 
@@ -76,12 +77,8 @@ power-image-annotation/
 │   ├── sync_resources.py             # 从规则目录同步资源
 │   └── self_test.py                  # 内置回归测试
 └── versions/
-    └── 1.2/                          # 周四稳定版的独立可安装Skill
-        ├── SKILL.md
-        ├── agents/
-        ├── assets/
-        ├── references/
-        └── scripts/
+    ├── 1.2/                          # 周四稳定版的独立可安装Skill
+    └── 3.0/                          # 双模式、审计版/内容版双输出Skill
 ```
 
 ## 安装
@@ -104,6 +101,15 @@ cp -a /tmp/power-image-annotation-repo/versions/1.2 \
 ```
 
 调用时使用`$power-image-annotation-v1-2`；根目录2.0仍使用`$power-image-annotation`。
+
+如需安装3.0：
+
+```bash
+cp -a /tmp/power-image-annotation-repo/versions/3.0 \
+  ~/.codex/skills/power-image-annotation-v3
+```
+
+调用时使用`$power-image-annotation-v3`，并指定`严格标签包`或`参考标签包`；每张图都会生成`*.audit.json`和`*.content.json`。
 
 ## 在 Codex 中使用
 

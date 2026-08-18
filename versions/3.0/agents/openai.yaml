@@ -1,0 +1,4 @@
+interface:
+  display_name: "电力图像双模式标注 3.0"
+  short_description: "严格或参考标签包，并同时导出审计版与纯内容版JSON"
+  default_prompt: "使用 $power-image-annotation-v3 选择严格或参考标签包模式，并同时生成审计版和纯内容版标注JSON。"
