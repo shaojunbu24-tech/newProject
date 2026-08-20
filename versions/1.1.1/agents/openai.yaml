@@ -1,0 +1,4 @@
+interface:
+  display_name: "电力图像标注 1.1.1"
+  short_description: "按1.0树形升级版规则生成受控嵌套JSON，可分辨实例逐个标注"
+  default_prompt: "使用 $power-image-annotation-v1-1-1 按1.1.1规则为这批电力设备图像生成嵌套对象树、逐实例标注和组合检索标注JSON。"
